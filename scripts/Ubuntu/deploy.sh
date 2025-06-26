@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Web项目一键部署脚本
+set -e  # 遇到错误立即退出
 
 # 颜色定义
 GREEN='\033[0;32m'
@@ -8,6 +9,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # 项目配置
+CONFIG_DIR="../../configs"          # 定义配置文件路径
 PROJECT_DIR="msdps_deploy"
 FRONTEND_REPO="https://github.com/whale-G/msdps_vue.git"
 BACKEND_REPO="https://github.com/whale-G/msdps.git"
@@ -76,21 +78,9 @@ systemctl restart docker
 # 步骤2: 创建项目目录
 echo -e "${GREEN}步骤2: 创建项目目录${NC}"
 mkdir -p $PROJECT_DIR/{frontend,backend,mysql,redis}
-
-# 步骤3: 构建docker-compose文件
-DOCKER_COMPOSE_FILE = "../../docker-compose.yml"
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "docker-compose文件不存在"
-    echo "部署暂停，请确保部署文件完整..."
-    exit 1
-else
-    echo "docker-compose文件已存在，可直接使用"
-    mv $DOCKER_COMPOSE_FILE $PROJECT_DIR
-fi
-
 cd $PROJECT_DIR
 
-# 步骤4: 克隆前端和后端代码
+# 步骤3: 克隆前端和后端代码
 echo -e "${GREEN}步骤3: 克隆前端和后端代码${NC}"
 if [ ! -d "$FRONTEND_DIR/.git" ]; then
     echo "克隆前端项目..."
@@ -112,120 +102,31 @@ else
     cd ..  
 fi
 
-# 步骤5: 创建配置文件
+# 步骤4: 创建配置文件
 echo -e "${GREEN}步骤4: 创建配置文件${NC}"
+
+# 创建web项目docker-compose文件
+echo "开始创建web项目docker-compose文件..."
+cp $CONFIG_DIR/docker-compose.yml docker-compose.yml
 
 # 创建MySQL初始化脚本
 echo "开始创建MySQL初始化脚本..."
-cat > mysql/init.sql << EOF
--- 创建应用数据库
-CREATE DATABASE IF NOT EXISTS \$MYSQL_DATABASE;
-
--- 创建用户并授权
-CREATE USER IF NOT EXISTS '\$MYSQL_USER'@'%' IDENTIFIED BY '\$MYSQL_PASSWORD';
-GRANT ALL PRIVILEGES ON \$MYSQL_DATABASE.* TO '\$MYSQL_USER'@'%';
-FLUSH PRIVILEGES;
-EOF
+cp $CONFIG_DIR/mysql/init.sql mysql/init.sql
 
 # 创建Redis配置
 echo "开始创建Redis初始化脚本..."
-cat > redis/redis.conf << EOF
-# 基础设置
-bind 0.0.0.0              # 绑定所有接口，容器环境必需
-protected-mode no         # 关闭保护模式，容器环境通常需要
-port 6379                 # 监听端口
-timeout 0                 # 客户端超时时间
+cp $CONFIG_DIR/redis/redis.conf redis/redis.conf
 
-# 持久化设置
-save 900 1                # 900秒内至少1个key被修改则进行快照
-save 300 10               # 300秒内至少10个key被修改则进行快照
-save 60 10000             # 60秒内至少10000个key被修改则进行快照
-appendonly yes            # 启用AOF持久化
-appendfsync everysec      # AOF同步策略，每秒一次
-
-# 内存管理
-maxmemory 256mb               # 最大内存限制
-maxmemory-policy allkeys-lru  # 内存不足时的淘汰策略
-
-# 安全设置
-requirepass \$REDIS_PASSWORD  # 设置访问密码
-rename-command FLUSHALL ""    # 禁用危险命令
-rename-command FLUSHDB ""     # 禁用危险命令
-
-# 日志设置
-loglevel notice             # 日志级别
-logfile /var/log/redis.log  # 日志文件位置
-EOF
-
-# 创建前端Dockerfile
+# 创建前端Dockerfile和Nginx配置
 echo "创建前端项目Docerfile文件..."
-cat > frontend/Dockerfile << EOF
-FROM node:16 as build     # 使用Node.js 16作为构建环境
-
-WORKDIR /app              # 设置工作目录
-
-COPY package*.json ./     # 复制package.json文件
-RUN npm install           # 安装依赖
-
-COPY . .                  # 复制项目所有文件
-RUN npm run build         # 执行Vue项目构建命令，生成dist目录
-
-FROM nginx:1.21           # 使用Nginx作为运行环境
-
-COPY --from=build /app/dist /usr/share/nginx/html     # 复制构建产物到Nginx目录
-COPY nginx.conf /etc/nginx/conf.d/default.conf        # 复制Nginx配置
-
-EXPOSE 80                 # 暴露端口80
-
-CMD ["nginx", "-g", "daemon off;"]      # 启动Nginx
-EOF
-
-# 创建前端Nginx配置
-echo "创建前端Nginx配置文件..."
-cat > frontend/nginx.conf << EOF
-server {
-    listen 80;
-    server_name localhost;
-
-    location / {
-        root /usr/share/nginx/html;             # 静态文件根目录
-        index index.html;                       # 默认首页
-        try_files \$uri \$uri/ /index.html;     # 处理Vue路由（单页应用）
-    }
-
-    location /gc_dt/ {
-        proxy_pass http://backend:8000/;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        add_header Access-Control-Allow-Origin *;
-        add_header Access-Control-Allow-Methods 'GET, POST, OPTIONS';
-        add_header Access-Control-Allow-Headers 'DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization';
-    }
-}
-EOF
+cp $CONFIG_DIR/frontend/Dockerfile frontend/Dockerfile
+cp $CONFIG_DIR/frontend/nginx.conf frontend/nginx.con
 
 # 创建后端Dockerfile
 echo "创建后端Dockerfile文件..."
-cat > backend/Dockerfile << EOF
-FROM python:3.9
+cp $CONFIG_DIR/backend/Dockerfile backend/Dockerfile
 
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-EXPOSE 8000
-
-RUN pip install wait-for-it
-
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-EOF
-
-# 步骤6: 配置环境变量
+# 步骤5: 配置环境变量
 echo -e "${GREEN}步骤5: 配置环境变量${NC}"
 if [ ! -f ".env" ]; then
     echo "请设置部署所需的环境变量:"
@@ -236,25 +137,41 @@ if [ ! -f ".env" ]; then
     read -p "Redis密码: " REDIS_PASSWORD
     read -p "Django超级用户名: " DJANGO_SUPERUSER_USERNAME
     read -p "Django超级用户密码: " DJANGO_SUPERUSER_PASSWORD
-    read -p "Django超级用户邮箱: " DJANGO_SUPERUSER_EMAIL
 
     cat > .env << EOF
+# MySQL配置
 MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 MYSQL_DATABASE=$MYSQL_DATABASE
 MYSQL_USER=$MYSQL_USER
 MYSQL_PASSWORD=$MYSQL_PASSWORD
+
+# Redis配置
 REDIS_PASSWORD=$REDIS_PASSWORD
+
+# Django配置
+DJANGO_SECRET_KEY=$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
+DJANGO_DEBUG=False
+DJANGO_ALLOWED_HOSTS=*
 DJANGO_SUPERUSER_USERNAME=$DJANGO_SUPERUSER_USERNAME
 DJANGO_SUPERUSER_PASSWORD=$DJANGO_SUPERUSER_PASSWORD
-DJANGO_SUPERUSER_EMAIL=$DJANGO_SUPERUSER_EMAIL
 EOF
 else
     echo ".env文件已存在，使用现有配置"
 fi
 
-# 步骤7: 构建并启动容器
+# 步骤6: 构建并启动容器
 echo -e "${GREEN}步骤6: 构建并启动容器${NC}"
 docker-compose up -d --build
+
+# 等待服务启动
+echo -e "${GREEN}等待服务启动...不要停止脚本${NC}"
+sleep 30
+
+# 显示容器状态
+echo -e "${GREEN}当前容器状态：${NC}"
+docker-compose ps
+
+# 检查容器是否正常运行
 
 echo -e "${GREEN}部署完成！${NC}"
 echo -e "${GREEN}前端应用可通过 http://服务器IP 访问${NC}"

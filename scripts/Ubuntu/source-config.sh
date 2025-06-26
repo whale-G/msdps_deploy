@@ -6,7 +6,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # 配置国内源和Git加速脚本
-
+set -e  # 遇到错误立即退出
 echo -e "${GREEN}开始配置国内软件源和Git加速...${NC}"
 
 # 检查是否有root权限
@@ -39,6 +39,6 @@ apt-get update
 
 # 配置Git使用国内镜像加速
 echo -e "${GREEN}配置Git使用国内镜像加速...${NC}"
-git config --global url."https://hub.fastgit.xyz".insteadOf "https://github.com"
+git config --global url."https://hub.fastgit.xyz".insteadOf "https://ghproxy.com/https://github.com".insteadOf "https://github.com"
 
 echo -e "${GREEN}国内源和Git加速配置完成！${NC}"    

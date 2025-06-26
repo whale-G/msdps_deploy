@@ -44,16 +44,21 @@ services:
       python manage.py runserver 0.0.0.0:8000
       "
     environment:
-      DB_HOST: db
-      DB_NAME: \$MYSQL_DATABASE
-      DB_USER: \$MYSQL_USER
-      DB_PASSWORD: \$MYSQL_PASSWORD
-      REDIS_HOST: redis
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_ENV=production
+      - DJANGO_SETTINGS_MODULE=MSDPT_BE.settings
+      - DB_HOST=db
+      - DB_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
       DJANGO_SUPERUSER_USERNAME: \$DJANGO_SUPERUSER_USERNAME
       DJANGO_SUPERUSER_PASSWORD: \$DJANGO_SUPERUSER_PASSWORD
       DJANGO_SUPERUSER_EMAIL: \$DJANGO_SUPERUSER_EMAIL
     volumes:
       - ./backend:/app
+      - ./logs:/app/logs
+      - ./static:/app/static
     ports:
       - "8000:8000"
     depends_on:
