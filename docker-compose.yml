@@ -1,0 +1,80 @@
+version: '3'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: \$MYSQL_ROOT_PASSWORD
+      MYSQL_DATABASE: \$MYSQL_DATABASE
+      MYSQL_USER: \$MYSQL_USER
+      MYSQL_PASSWORD: \$MYSQL_PASSWORD
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+
+  redis:
+    image: redis:6.2
+    container_name: redis
+    restart: always
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./redis/data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    restart: always
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py createsuperuser --noinput || true &&
+      python manage.py runserver 0.0.0.0:8000
+      "
+    environment:
+      DB_HOST: db
+      DB_NAME: \$MYSQL_DATABASE
+      DB_USER: \$MYSQL_USER
+      DB_PASSWORD: \$MYSQL_PASSWORD
+      REDIS_HOST: redis
+      DJANGO_SUPERUSER_USERNAME: \$DJANGO_SUPERUSER_USERNAME
+      DJANGO_SUPERUSER_PASSWORD: \$DJANGO_SUPERUSER_PASSWORD
+      DJANGO_SUPERUSER_EMAIL: \$DJANGO_SUPERUSER_EMAIL
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
