@@ -37,28 +37,16 @@ services:
       dockerfile: Dockerfile
     container_name: backend
     restart: always
-    command: >
-      sh -c "
-      python manage.py migrate &&
-      python manage.py createsuperuser --noinput || true &&
-      python manage.py runserver 0.0.0.0:8000
-      "
-    environment:
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - DJANGO_ENV=production
-      - DJANGO_SETTINGS_MODULE=MSDPT_BE.settings
-      - DB_HOST=db
-      - DB_PORT=3306
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_DB=0
-      DJANGO_SUPERUSER_USERNAME: \$DJANGO_SUPERUSER_USERNAME
-      DJANGO_SUPERUSER_PASSWORD: \$DJANGO_SUPERUSER_PASSWORD
-      DJANGO_SUPERUSER_EMAIL: \$DJANGO_SUPERUSER_EMAIL
+    env_file:
+      - ./configs/env/.env
+      - ./configs/env/.env.production
     volumes:
       - ./backend:/app
       - ./logs:/app/logs
       - ./static:/app/static
+      # 将环境变量文件挂载到容器中
+      - ./configs/env/.env:/app/.env
+      - ./configs/env/.env.production:/app/.env.production
     ports:
       - "8000:8000"
     depends_on:
@@ -67,18 +55,20 @@ services:
     networks:
       - app-network
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: frontend
-    restart: always
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    networks:
-      - app-network
+  frontend:                         # 服务名称
+    build:                          # 构建配置
+      context: ./frontend           # 构建上下文，指定Dockerfile所在目录
+      dockerfile: Dockerfile        # 指定Dockerfile文件名
+    container_name: frontend        # 容器名称
+    restart: always                 # 自动重启
+    volumes:
+      - ./frontend:/app
+    ports:                          # 端口映射
+      - "80:80"                     # 主机的80端口映射到容器的80端口
+    depends_on:                     # 依赖关系   
+      - backend                     # 确保backend服务先启动
+    networks:                       # 网络配置
+      - app-network                 # 使用app-network网络，将容器加入到app-network网络，使其能与其他服务（如后端）通信
 
 networks:
   app-network:

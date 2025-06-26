@@ -77,7 +77,7 @@ systemctl restart docker
 
 # 步骤2: 创建项目目录
 echo -e "${GREEN}步骤2: 创建项目目录${NC}"
-mkdir -p $PROJECT_DIR/{frontend,backend,mysql,redis}
+mkdir -p $PROJECT_DIR/{frontend,backend,mysql,redis,configs/env}
 cd $PROJECT_DIR
 
 # 步骤3: 克隆前端和后端代码
@@ -120,7 +120,7 @@ cp $CONFIG_DIR/redis/redis.conf redis/redis.conf
 # 创建前端Dockerfile和Nginx配置
 echo "创建前端项目Docerfile文件..."
 cp $CONFIG_DIR/frontend/Dockerfile frontend/Dockerfile
-cp $CONFIG_DIR/frontend/nginx.conf frontend/nginx.con
+cp $CONFIG_DIR/frontend/nginx.conf frontend/nginx.conf
 
 # 创建后端Dockerfile
 echo "创建后端Dockerfile文件..."
@@ -128,19 +128,25 @@ cp $CONFIG_DIR/backend/Dockerfile backend/Dockerfile
 
 # 步骤5: 配置环境变量
 echo -e "${GREEN}步骤5: 配置环境变量${NC}"
-if [ ! -f ".env" ]; then
+if [ ! -f "configs/env/.env" ] || [ ! -f "configs/env/.env.production" ]; then
     echo "请设置部署所需的环境变量:"
-    read -p "MySQL root密码: " MYSQL_ROOT_PASSWORD
     read -p "MySQL数据库名: " MYSQL_DATABASE
     read -p "MySQL用户名: " MYSQL_USER
     read -p "MySQL密码: " MYSQL_PASSWORD
     read -p "Redis密码: " REDIS_PASSWORD
-    read -p "Django超级用户名: " DJANGO_SUPERUSER_USERNAME
-    read -p "Django超级用户密码: " DJANGO_SUPERUSER_PASSWORD
+    read -p "Django管理员用户名: " DJANGO_SUPERUSER_USERNAME
+    read -p "Django管理员初始密码: " DJANGO_SUPERUSER_PASSWORD
+    echo
 
-    cat > .env << EOF
+    # 生成SECRET_KEY
+    DJANGO_SECRET_KEY=$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
+    
+    # 创建配置文件
+    mkdir -p configs/env
+    cp configs/env/.env configs/env/.env
+
+    cat > configs/env/.env.production << EOF
 # MySQL配置
-MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 MYSQL_DATABASE=$MYSQL_DATABASE
 MYSQL_USER=$MYSQL_USER
 MYSQL_PASSWORD=$MYSQL_PASSWORD
@@ -172,9 +178,53 @@ echo -e "${GREEN}当前容器状态：${NC}"
 docker-compose ps
 
 # 检查容器是否正常运行
+echo -e "${GREEN}检查容器运行状态...${NC}"
 
-echo -e "${GREEN}部署完成！${NC}"
-echo -e "${GREEN}前端应用可通过 http://服务器IP 访问${NC}"
-echo -e "${GREEN}Django管理后台可通过 http://服务器IP/admin 访问${NC}"
-echo -e "${GREEN}管理员账号: $DJANGO_SUPERUSER_USERNAME${NC}"
-echo -e "${GREEN}管理员密码: $DJANGO_SUPERUSER_PASSWORD${NC}"
+# 定义需要检查的容器
+CONTAINERS=("frontend" "backend" "db" "redis")
+
+# 检查函数
+check_container() {
+    local container=$1
+    # 检查容器是否存在且运行
+    if [ "$(docker ps -q -f name=$container)" ]; then
+        # 检查容器状态
+        local status=$(docker inspect -f '{{.State.Status}}' $container)
+        if [ "$status" = "running" ]; then
+            echo -e "${GREEN}✓ $container 容器运行正常${NC}"
+            return 0
+        else
+            echo -e "${RED}✗ $container 容器状态异常: $status${NC}"
+            return 1
+        fi
+    else
+        echo -e "${RED}✗ $container 容器不存在或未运行${NC}"
+        return 1
+    fi
+}
+
+# 检查所有容器
+FAILED=0
+for container in "${CONTAINERS[@]}"; do
+    if ! check_container $container; then
+        FAILED=1
+    fi
+done
+
+# 如果有容器运行异常，显示日志并退出
+if [ $FAILED -eq 1 ]; then
+    echo -e "${RED}某些容器运行异常，显示详细日志：${NC}"
+    for container in "${CONTAINERS[@]}"; do
+        echo -e "\n${YELLOW}$container 容器日志：${NC}"
+        docker logs $container
+    done
+    echo -e "${RED}部署失败：某些容器未能正常运行，请检查上述日志解决问题。${NC}"
+    exit 1
+else
+    echo -e "${GREEN}所有容器运行正常！${NC}"
+    echo -e "${GREEN}部署成功！您现在可以访问以下服务：${NC}"
+    echo -e "${GREEN}前端应用可通过 http://服务器IP 访问${NC}"
+    echo -e "${GREEN}Django管理后台可通过 http://服务器IP/admin 访问${NC}"
+    echo -e "${GREEN}管理员账号: $DJANGO_SUPERUSER_USERNAME${NC}"
+    echo -e "${GREEN}管理员密码: $DJANGO_SUPERUSER_PASSWORD${NC}"
+fi
