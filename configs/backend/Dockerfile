@@ -8,7 +8,7 @@ RUN ln -snf /usr/share/zoneinfo/\$TZ /etc/localtime && echo \$TZ > /etc/timezone
 # 设置工作目录
 WORKDIR /app
 
-COPY msdps/requirements.txt .
+COPY requirements.txt .
 
 # 设置pip镜像源
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
@@ -18,7 +18,7 @@ RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && 
 RUN mkdir -p /app/logs /app/static
 
 # 复制所有代码到容器
-COPY msdps/ .
+COPY . .
 
 EXPOSE 8000
 

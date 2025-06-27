@@ -1,19 +1,30 @@
 #!/bin/bash
+# Web项目一键部署脚本
+
+# 获取脚本所在目录的绝对路径
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+# 配置文件目录
+CONFIG_DIR="$(realpath "$SCRIPT_DIR/../../configs")"
 
 # 引入工具脚本
-source ./docker-utils.sh
+source "$SCRIPT_DIR/docker-utils.sh"
 
-# Web项目一键部署脚本
-set -e  # 遇到错误立即退出
+# 遇到错误立即退出
+set -e  
 
 # 颜色定义
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+echo -e "${GREEN}开始部署Web项目...${NC}"
+
+# 获取真实用户和主目录
+REAL_USER=${SUDO_USER:-$USER}
+USER_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
+PROJECT_DIR="$USER_HOME/msdps_web"
 # 项目配置
 CONFIG_DIR="../../configs"          # 定义配置文件路径
-PROJECT_DIR="msdps_deploy"
 FRONTEND_REPO="https://github.com/whale-G/msdps_vue.git"
 BACKEND_REPO="https://github.com/whale-G/msdps.git"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
@@ -25,10 +36,8 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-echo -e "${GREEN}开始部署Web项目...${NC}"
-
 # 步骤1: 安装Docker和Docker Compose
-echo -e "${GREEN}步骤X: 配置Docker环境${NC}"
+echo -e "${GREEN}步骤1: 配置Docker环境${NC}"
 setup_docker_environment
 
 # 如果Docker环境配置失败，退出脚本
@@ -40,6 +49,7 @@ fi
 # 步骤2: 创建项目目录
 echo -e "${GREEN}步骤2: 创建项目目录${NC}"
 mkdir -p $PROJECT_DIR/{frontend,backend,mysql,redis,configs/env}
+chown -R $REAL_USER:$REAL_USER $PROJECT_DIR
 cd $PROJECT_DIR
 
 # 步骤3: 克隆前端和后端代码
@@ -69,29 +79,29 @@ echo -e "${GREEN}步骤4: 创建配置文件${NC}"
 
 # 创建web项目docker-compose相关文件
 echo "开始创建web项目docker-compose相关文件..."
-cp $CONFIG_DIR/docker-compose.yml docker-compose.yml
-touch docker-compose.env
+cp $CONFIG_DIR/docker-compose.yml "$PROJECT_DIR/docker-compose.yml"
+touch "$PROJECT_DIR/docker-compose.env"
 
 # 创建MySQL初始化脚本
 echo "开始创建MySQL初始化脚本..."
-cp $CONFIG_DIR/mysql/init.sql mysql/init.sql
+cp $CONFIG_DIR/mysql/init.sql "$PROJECT_DIR/mysql/init.sql"
 
 # 创建Redis配置
 echo "开始创建Redis初始化脚本..."
-cp $CONFIG_DIR/redis/redis.conf redis/redis.conf
+cp $CONFIG_DIR/redis/redis.conf "$PROJECT_DIR/redis/redis.conf"
 
 # 创建前端Dockerfile和Nginx配置
 echo "创建前端项目Docerfile文件..."
-cp $CONFIG_DIR/frontend/Dockerfile frontend/Dockerfile
-cp $CONFIG_DIR/frontend/nginx.conf frontend/nginx.conf
+cp $CONFIG_DIR/frontend/Dockerfile "$PROJECT_DIR/frontend/Dockerfile"
+cp $CONFIG_DIR/frontend/nginx.conf "$PROJECT_DIR/frontend/nginx.conf"
 
 # 创建后端Dockerfile
 echo "创建后端Dockerfile文件..."
-cp $CONFIG_DIR/backend/Dockerfile backend/Dockerfile
+cp $CONFIG_DIR/backend/Dockerfile "$PROJECT_DIR/backend/Dockerfile"
 
 # 步骤5: 配置web项目环境变量
 echo -e "${GREEN}步骤5: 配置web项目环境变量${NC}"
-if [ ! -f "configs/env/.env" ] || [ ! -f "configs/env/.env.production" ]; then
+if [ ! -f "$PROJECT_DIR/configs/env/.env" ] || [ ! -f "$PROJECT_DIR/configs/env/.env.production" ]; then
     echo "请设置部署所需的环境变量:"
     read -p "MySQLroot密码: root用户的管理员密码, 用于数据库的高级管理操作: " MYSQL_ROOT_PASSWORD
     read -p "MySQL数据库名: " MYSQL_DATABASE
@@ -107,9 +117,9 @@ if [ ! -f "configs/env/.env" ] || [ ! -f "configs/env/.env.production" ]; then
     
     # 创建配置文件
     mkdir -p configs/env
-    cp configs/env/.env configs/env/.env
+    cp "$CONFIG_DIR/env/.env" "$PROJECT_DIR/configs/env/.env"
 
-    cat > configs/env/.env.production << EOF
+    cat > "$PROJECT_DIR/configs/env/.env.production" << EOF
 # MySQL配置
 MYSQL_DATABASE=$MYSQL_DATABASE
 MYSQL_USER=$MYSQL_USER

@@ -167,12 +167,6 @@ setup_docker_environment() {
         echo -e "${YELLOW}Docker环境未完全安装，开始安装apt版本...${NC}"
         install_apt_docker
     fi
-    
-    # 最终验证
-    echo -e "${GREEN}Docker环境配置完成，当前状态：${NC}"
-    docker --version
-    docker-compose --version
-    docker info | grep -E "Server Version|Storage Driver|Logging Driver|Cgroup Driver|Contains|Registry"
 }
 
 # 检查端口占用

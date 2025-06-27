@@ -7,7 +7,7 @@ FROM node:16 as build
 WORKDIR /app
 
 # 复制package.json和package-lock.json到工作目录
-COPY msdps_vue/package*.json .     
+COPY package*.json .     
 # ↑ 这样做的好处是利用Docker的缓存机制，如果依赖没有变化，就不会重新安装
 
 # 添加npm镜像源配置并安装项目依赖
@@ -15,7 +15,7 @@ RUN npm config set registry https://registry.npmmirror.com && \
     npm install
 
 # 复制所有源代码到工作目录
-COPY msdps_vue/ .
+COPY . .
 # ↑ 这一步放在npm install后面是为了利用Docker的缓存层，避免源码改变导致重新安装依赖
 
 # 设置Node环境变量为生产环境
