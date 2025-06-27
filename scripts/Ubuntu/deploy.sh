@@ -187,8 +187,8 @@ echo -e "${GREEN}检查端口冲突...${NC}"
 check_port_conflicts "$FRONTEND_PORT" "$BACKEND_PORT"
 
 # 将端口信息写入docker-compose.env文件
-echo "BACKEND_PORT=$BACKEND_PORT" > docker-compose.env
-echo "FRONTEND_PORT=$FRONTEND_PORT" >> docker-compose.env
+echo "BACKEND_PORT=$BACKEND_PORT" > "$PROJECT_DIR/docker-compose.env"
+echo "FRONTEND_PORT=$FRONTEND_PORT" >> "$PROJECT_DIR/docker-compose.env"
 
 # 显示配置确认信息
 echo -e "\n端口配置信息："
