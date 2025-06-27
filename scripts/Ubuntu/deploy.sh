@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# 引入工具脚本
+source ./docker-utils.sh
+
 # Web项目一键部署脚本
 set -e  # 遇到错误立即退出
 
@@ -25,55 +28,14 @@ fi
 echo -e "${GREEN}开始部署Web项目...${NC}"
 
 # 步骤1: 安装Docker和Docker Compose
-echo -e "${GREEN}步骤1: 安装Docker和Docker Compose${NC}"
-if ! command -v docker &> /dev/null; then
-    echo "安装Docker..."
-    apt-get update
-    apt-get install -y apt-transport-https ca-certificates curl software-properties-common
-    # 添加Docker官方GPG密钥
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-    # 添加Docker官方APT仓库
-    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-    # 更新包索引并安装Docker
-    apt-get update
-    apt-get install -y docker-ce docker-ce-cli containerd.io
-    # 启用并启动Docker服务
-    systemctl enable docker
-    systemctl start docker
-    echo "Docker安装完成"
-else
-    echo "Docker已安装，跳过安装步骤"
+echo -e "${GREEN}步骤X: 配置Docker环境${NC}"
+setup_docker_environment
+
+# 如果Docker环境配置失败，退出脚本
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Docker环境配置失败，部署终止${NC}"
+    exit 1
 fi
-
-if ! command -v docker-compose &> /dev/null; then
-    echo "安装Docker Compose..."
-    # 下载指定版本的Docker Compose二进制文件
-    curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    # 添加执行权限
-    chmod +x /usr/local/bin/docker-compose
-    echo "Docker Compose安装完成"
-else
-    echo "Docker Compose已安装，跳过安装步骤"
-fi
-
-# 配置Docker国内镜像源
-echo -e "${GREEN}配置Docker国内镜像源...${NC}"
-mkdir -p /etc/docker
-cat > /etc/docker/daemon.json << EOF
-{
-  "registry-mirrors": [
-    "https://registry.docker-cn.com",
-    "https://hub-mirror.c.163.com",
-    "https://mirror.baidubce.com",
-    "https://docker.mirrors.ustc.edu.cn"
-  ]
-}
-EOF
-
-# 重启Docker服务
-echo -e "${GREEN}重启Docker服务...${NC}"
-systemctl daemon-reload
-systemctl restart docker
 
 # 步骤2: 创建项目目录
 echo -e "${GREEN}步骤2: 创建项目目录${NC}"
@@ -194,11 +156,6 @@ while true; do
         continue
     fi
     
-    if ! check_port "$BACKEND_PORT"; then
-        echo "警告: 端口 $BACKEND_PORT 已被占用，请选择其他端口"
-        continue
-    fi
-    
     break
 done
 
@@ -222,13 +179,11 @@ while true; do
         continue
     fi
     
-    if ! check_port "$FRONTEND_PORT"; then
-        echo "警告: 端口 $FRONTEND_PORT 已被占用，请选择其他端口"
-        continue
-    fi
-    
     break
 done
+
+# 检查端口冲突
+check_port_conflicts "$FRONTEND_PORT" "$BACKEND_PORT"
 
 # 将端口信息写入docker-compose.env文件
 echo "BACKEND_PORT=$BACKEND_PORT" > docker-compose.env
@@ -241,6 +196,19 @@ echo "前端服务端口: $FRONTEND_PORT"
 
 # 步骤7: 构建并启动容器
 echo -e "${GREEN}步骤7: 构建并启动容器${NC}"
+echo -e "${GREEN}检查Docker容器状态${NC}"
+# 检查容器名称冲突
+check_container_conflicts
+
+echo -e "${GREEN}验证配置文件完整性...${NC}"
+for file in "docker-compose.yml" "docker-compose.env" "configs/env/.env" "configs/env/.env.production" "mysql/init.sql" "redis/redis.conf"; do
+    if [ ! -f "$file" ]; then
+        echo -e "${RED}错误：配置文件 $file 不存在${NC}"
+        exit 1
+    fi
+done
+
+echo -e "${GREEN}开始启动Docker容器...${NC}"
 docker-compose up -d --build
 
 # 等待服务启动
@@ -255,7 +223,7 @@ docker-compose ps
 echo -e "${GREEN}检查容器运行状态...${NC}"
 
 # 定义需要检查的容器
-CONTAINERS=("frontend" "backend" "db" "redis")
+CONTAINERS=("msdps_frontend" "msdps_backend" "msdps_mysql" "msdps_redis")
 
 # 检查函数
 check_container() {

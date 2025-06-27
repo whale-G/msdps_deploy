@@ -6,7 +6,7 @@ env_file:
 services:
   db:
     image: mysql:8.0
-    container_name: mysql
+    container_name: msdps_mysql
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: \$MYSQL_ROOT_PASSWORD
@@ -21,7 +21,7 @@ services:
 
   redis:
     image: redis:6.2
-    container_name: redis
+    container_name: msdps_redis
     restart: always
     command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
@@ -34,7 +34,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: backend
+    container_name: msdps_backend
     restart: always
     env_file:
       - ./configs/env/.env
@@ -58,7 +58,7 @@ services:
     build:                              # 构建配置
       context: ./frontend               # 构建上下文，指定Dockerfile所在目录
       dockerfile: Dockerfile            # 指定Dockerfile文件名
-    container_name: frontend            # 容器名称
+    container_name: msdps_frontend      # 容器名称
     restart: always                     # 自动重启
     volumes:
       - ./frontend:/app
