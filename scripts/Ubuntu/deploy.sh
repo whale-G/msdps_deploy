@@ -105,7 +105,7 @@ if [ ! -f "$PROJECT_DIR/configs/env/.env" ] || [ ! -f "$PROJECT_DIR/configs/env/
     echo
 
     # 创建配置文件
-    mkdir -p configs/env
+    mkdir -p $PROJECT_DIR/configs/env
     cp "$CONFIG_DIR/env/.env" "$PROJECT_DIR/configs/env/.env"
 
     # 创建初始环境变量文件，SECRET_KEY先用占位符
@@ -183,6 +183,7 @@ while true; do
 done
 
 # 检查端口冲突
+echo -e "${GREEN}检查端口冲突...${NC}"
 check_port_conflicts "$FRONTEND_PORT" "$BACKEND_PORT"
 
 # 将端口信息写入docker-compose.env文件
@@ -201,7 +202,7 @@ echo -e "${GREEN}检查Docker容器状态${NC}"
 check_container_conflicts
 
 echo -e "${GREEN}验证配置文件完整性...${NC}"
-for file in "docker-compose.yml" "docker-compose.env" "configs/env/.env" "configs/env/.env.production" "mysql/init.sql" "redis/redis.conf"; do
+for file in "$PROJECT_DIR/docker-compose.yml" "$PROJECT_DIR/docker-compose.env" "$PROJECT_DIR/configs/env/.env" "$PROJECT_DIR/configs/env/.env.production" "$PROJECT_DIR/mysql/init.sql" "$PROJECT_DIR/redis/redis.conf"; do
     if [ ! -f "$file" ]; then
         echo -e "${RED}错误：配置文件 $file 不存在${NC}"
         exit 1
