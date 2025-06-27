@@ -1,5 +1,8 @@
 version: '3'
 
+env_file:
+  - docker-compose.env    # Docker Compose的环境变量
+
 services:
   db:
     image: mysql:8.0
@@ -13,8 +16,6 @@ services:
     volumes:
       - ./mysql/data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "3306:3306"
     networks:
       - app-network
 
@@ -26,8 +27,6 @@ services:
     volumes:
       - ./redis/data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
-    ports:
-      - "6379:6379"
     networks:
       - app-network
 
@@ -48,27 +47,27 @@ services:
       - ./configs/env/.env:/app/.env
       - ./configs/env/.env.production:/app/.env.production
     ports:
-      - "8000:8000"
+      - "\${BACKEND_PORT:-18000}:8000"  # 根据环境变量设置端口映射，默认值为18000
     depends_on:
       - db
       - redis
     networks:
       - app-network
 
-  frontend:                         # 服务名称
-    build:                          # 构建配置
-      context: ./frontend           # 构建上下文，指定Dockerfile所在目录
-      dockerfile: Dockerfile        # 指定Dockerfile文件名
-    container_name: frontend        # 容器名称
-    restart: always                 # 自动重启
+  frontend:                             # 服务名称
+    build:                              # 构建配置
+      context: ./frontend               # 构建上下文，指定Dockerfile所在目录
+      dockerfile: Dockerfile            # 指定Dockerfile文件名
+    container_name: frontend            # 容器名称
+    restart: always                     # 自动重启
     volumes:
       - ./frontend:/app
-    ports:                          # 端口映射
-      - "80:80"                     # 主机的80端口映射到容器的80端口
-    depends_on:                     # 依赖关系   
-      - backend                     # 确保backend服务先启动
-    networks:                       # 网络配置
-      - app-network                 # 使用app-network网络，将容器加入到app-network网络，使其能与其他服务（如后端）通信
+    ports:                              # 端口映射
+      - "\${FRONTEND_PORT:-18080}:80"   # 根据环境变量设置端口映射，默认值为18080
+    depends_on:                         # 依赖关系   
+      - backend                         # 确保backend服务先启动
+    networks:                           # 网络配置
+      - app-network                     # 使用app-network网络，将容器加入到app-network网络，使其能与其他服务（如后端）通信
 
 networks:
   app-network:

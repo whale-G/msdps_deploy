@@ -105,9 +105,10 @@ fi
 # 步骤4: 创建配置文件
 echo -e "${GREEN}步骤4: 创建配置文件${NC}"
 
-# 创建web项目docker-compose文件
-echo "开始创建web项目docker-compose文件..."
+# 创建web项目docker-compose相关文件
+echo "开始创建web项目docker-compose相关文件..."
 cp $CONFIG_DIR/docker-compose.yml docker-compose.yml
+touch docker-compose.env
 
 # 创建MySQL初始化脚本
 echo "开始创建MySQL初始化脚本..."
@@ -126,10 +127,11 @@ cp $CONFIG_DIR/frontend/nginx.conf frontend/nginx.conf
 echo "创建后端Dockerfile文件..."
 cp $CONFIG_DIR/backend/Dockerfile backend/Dockerfile
 
-# 步骤5: 配置环境变量
-echo -e "${GREEN}步骤5: 配置环境变量${NC}"
+# 步骤5: 配置web项目环境变量
+echo -e "${GREEN}步骤5: 配置web项目环境变量${NC}"
 if [ ! -f "configs/env/.env" ] || [ ! -f "configs/env/.env.production" ]; then
     echo "请设置部署所需的环境变量:"
+    read -p "MySQLroot密码: root用户的管理员密码, 用于数据库的高级管理操作: " MYSQL_ROOT_PASSWORD
     read -p "MySQL数据库名: " MYSQL_DATABASE
     read -p "MySQL用户名: " MYSQL_USER
     read -p "MySQL密码: " MYSQL_PASSWORD
@@ -165,8 +167,80 @@ else
     echo ".env文件已存在，使用现有配置"
 fi
 
-# 步骤6: 构建并启动容器
-echo -e "${GREEN}步骤6: 构建并启动容器${NC}"
+# 步骤6: 配置docker容器端口映射
+echo -e "${GREEN}步骤6: 配置docker容器端口映射${NC}"
+
+# 检查端口是否被占用的函数
+check_port() {
+    local port=$1
+    if netstat -tuln | grep -q ":$port "; then
+        return 1
+    fi
+    return 0
+}
+
+# 配置后端端口
+while true; do
+    read -p "后端服务端口 (默认: 18000): " BACKEND_PORT
+    BACKEND_PORT=${BACKEND_PORT:-18000}  # 设置默认值
+    
+    if ! [[ "$BACKEND_PORT" =~ ^[0-9]+$ ]]; then
+        echo "错误: 端口必须是数字"
+        continue
+    fi
+    
+    if [ "$BACKEND_PORT" -lt 1024 ] || [ "$BACKEND_PORT" -gt 65535 ]; then
+        echo "错误: 端口必须在1024-65535之间"
+        continue
+    fi
+    
+    if ! check_port "$BACKEND_PORT"; then
+        echo "警告: 端口 $BACKEND_PORT 已被占用，请选择其他端口"
+        continue
+    fi
+    
+    break
+done
+
+# 配置前端端口
+while true; do
+    read -p "前端服务端口 (默认: 18080): " FRONTEND_PORT
+    FRONTEND_PORT=${FRONTEND_PORT:-18080}  # 修改默认值为更常用的18080
+    
+    if ! [[ "$FRONTEND_PORT" =~ ^[0-9]+$ ]]; then
+        echo "错误: 端口必须是数字"
+        continue
+    fi
+    
+    if [ "$FRONTEND_PORT" -lt 1024 ] || [ "$FRONTEND_PORT" -gt 65535 ]; then
+        echo "错误: 端口必须在1024-65535之间"
+        continue
+    fi
+    
+    if [ "$FRONTEND_PORT" -eq "$BACKEND_PORT" ]; then
+        echo "错误: 前端端口不能与后端端口相同"
+        continue
+    fi
+    
+    if ! check_port "$FRONTEND_PORT"; then
+        echo "警告: 端口 $FRONTEND_PORT 已被占用，请选择其他端口"
+        continue
+    fi
+    
+    break
+done
+
+# 将端口信息写入docker-compose.env文件
+echo "BACKEND_PORT=$BACKEND_PORT" > docker-compose.env
+echo "FRONTEND_PORT=$FRONTEND_PORT" >> docker-compose.env
+
+# 显示配置确认信息
+echo -e "\n端口配置信息："
+echo "后端服务端口: $BACKEND_PORT"
+echo "前端服务端口: $FRONTEND_PORT"
+
+# 步骤7: 构建并启动容器
+echo -e "${GREEN}步骤7: 构建并启动容器${NC}"
 docker-compose up -d --build
 
 # 等待服务启动
