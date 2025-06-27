@@ -27,8 +27,8 @@ PROJECT_DIR="$USER_HOME/msdps_web"
 # 项目配置
 CONFIG_DIR="../../configs"          # 定义配置文件路径
 # 项目Gitee仓库
-FRONTEND_REPO="https://github.com/whale-G/msdps_vue.git"
-BACKEND_REPO="https://github.com/whale-G/msdps.git"
+FRONTEND_REPO="https://gitclone.com/github.com/whale-G/msdps_vue.git"
+BACKEND_REPO="https://gitclone.com/github.com/whale-G/msdps.git"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 
