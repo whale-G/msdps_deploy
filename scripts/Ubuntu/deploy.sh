@@ -8,6 +8,7 @@ CONFIG_DIR="$(realpath "$SCRIPT_DIR/../../configs")"
 
 # 引入工具脚本
 source "$SCRIPT_DIR/docker-utils.sh"
+source "$SCRIPT_DIR/git-utils.sh"
 
 # 遇到错误立即退出
 set -e  
@@ -25,8 +26,9 @@ USER_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 PROJECT_DIR="$USER_HOME/msdps_web"
 # 项目配置
 CONFIG_DIR="../../configs"          # 定义配置文件路径
-FRONTEND_REPO="https://github.com/whale-G/msdps_vue.git"
-BACKEND_REPO="https://github.com/whale-G/msdps.git"
+# 项目Gitee仓库
+FRONTEND_REPO="https://github.com/s_whale/msdps_vue.git"
+BACKEND_REPO="https://github.com/s_whale/msdps.git"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 
@@ -54,25 +56,14 @@ cd $PROJECT_DIR
 
 # 步骤3: 克隆前端和后端代码
 echo -e "${GREEN}步骤3: 克隆前端和后端代码${NC}"
-if [ ! -d "$FRONTEND_DIR/.git" ]; then
-    echo "克隆前端项目..."
-    git clone $FRONTEND_REPO $FRONTEND_DIR
-else
-    echo "前端项目已存在，拉取最新代码..."
-    cd $FRONTEND_DIR
-    git pull
-    cd ..
-fi
 
-if [ ! -d "$BACKEND_DIR/.git" ]; then
-    echo "克隆后端项目..."
-    git clone $BACKEND_REPO $BACKEND_DIR
-else
-    echo "后端项目已存在，拉取最新代码..."
-    cd $BACKEND_DIR
-    git pull
-    cd ..  
-fi
+# 克隆前端仓库
+echo -e "${GREEN}克隆前端仓库...${NC}"
+clone_with_retry "$FRONTEND_REPO" "$FRONTEND_DIR"
+
+# 克隆后端仓库
+echo -e "${GREEN}克隆后端仓库...${NC}"
+clone_with_retry "$BACKEND_REPO" "$BACKEND_DIR"
 
 # 步骤4: 创建配置文件
 echo -e "${GREEN}步骤4: 创建配置文件${NC}"

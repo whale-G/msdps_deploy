@@ -48,10 +48,10 @@ A highly customized mass spectrometry data processing system, this is the Linux 
 
 ## 详细部署流程
 
-1. 配置Git国内加速
+1. 配置git国内加速
 
     ```shell
-    git config --global url."https://hub.fastgit.xyz".insteadOf "https://ghproxy.com/https://github.com".insteadOf "https://github.com"
+    git config --global url."https://ghproxy.com/https://github.com".insteadOf "https://github.com"
     ```
 
 2. git clone本项目至本地，找到`deploy.sh`脚本所在目录
@@ -69,6 +69,8 @@ A highly customized mass spectrometry data processing system, this is the Linux 
     # 赋予权限
     chmod +x deploy.sh
     chmod +x source-config.sh
+    chmod +x docker-utils.sh
+    chmod +x git-utils.sh
 
     # 执行脚本
     ./source-config.sh      # 更换国内下载源
