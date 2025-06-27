@@ -66,11 +66,8 @@ A highly customized mass spectrometry data processing system, this is the Linux 
 3. 赋予部署脚本可执行权限，并执行脚本
 
     ```shell
-    # 赋予权限
-    chmod +x deploy.sh
-    chmod +x source-config.sh
-    chmod +x docker-utils.sh
-    chmod +x git-utils.sh
+    # 赋予脚本执行权限
+    chmod +x ./*.sh
 
     # 执行脚本
     ./source-config.sh      # 更换国内下载源
