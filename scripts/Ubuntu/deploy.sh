@@ -210,6 +210,7 @@ for file in "$PROJECT_DIR/docker-compose.yml" "$PROJECT_DIR/docker-compose.env" 
 done
 
 echo -e "${GREEN}开始启动Docker容器...${NC}"
+cd $PROJECT_DIR
 docker-compose up -d --build
 
 # 等待服务启动
