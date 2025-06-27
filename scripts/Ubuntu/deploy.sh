@@ -76,6 +76,7 @@ fi
 
 # 步骤4: 创建配置文件
 echo -e "${GREEN}步骤4: 创建配置文件${NC}"
+cd $SCRIPT_DIR
 
 # 创建web项目docker-compose相关文件
 echo "开始创建web项目docker-compose相关文件..."
