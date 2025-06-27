@@ -113,13 +113,11 @@ if [ ! -f "$PROJECT_DIR/configs/env/.env" ] || [ ! -f "$PROJECT_DIR/configs/env/
     read -p "Django管理员初始密码: " DJANGO_SUPERUSER_PASSWORD
     echo
 
-    # 生成SECRET_KEY
-    DJANGO_SECRET_KEY=$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
-    
     # 创建配置文件
     mkdir -p configs/env
     cp "$CONFIG_DIR/env/.env" "$PROJECT_DIR/configs/env/.env"
 
+    # 创建初始环境变量文件，SECRET_KEY先用占位符
     cat > "$PROJECT_DIR/configs/env/.env.production" << EOF
 # MySQL配置
 MYSQL_DATABASE=$MYSQL_DATABASE
@@ -130,7 +128,7 @@ MYSQL_PASSWORD=$MYSQL_PASSWORD
 REDIS_PASSWORD=$REDIS_PASSWORD
 
 # Django配置
-DJANGO_SECRET_KEY=$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
+DJANGO_SECRET_KEY=temp_secret_key_will_be_replaced
 DJANGO_DEBUG=False
 DJANGO_ALLOWED_HOSTS=*
 DJANGO_SUPERUSER_USERNAME=$DJANGO_SUPERUSER_USERNAME
@@ -224,6 +222,28 @@ docker-compose up -d --build
 
 # 等待服务启动
 echo -e "${GREEN}等待服务启动...不要停止脚本${NC}"
+# 等待后端容器启动
+echo -e "${GREEN}等待后端服务启动...${NC}"
+sleep 10
+
+# 使用后端容器生成SECRET_KEY并更新配置文件
+echo -e "${GREEN}生成Django SECRET_KEY...${NC}"
+NEW_SECRET_KEY=$(docker exec msdps_backend python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
+
+if [ -n "$NEW_SECRET_KEY" ]; then
+    # 更新环境变量文件中的SECRET_KEY
+    sed -i "s/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=$NEW_SECRET_KEY/" "$PROJECT_DIR/configs/env/.env.production"
+    echo -e "${GREEN}SECRET_KEY已更新${NC}"
+    
+    # 重启后端容器以使用新的SECRET_KEY
+    echo -e "${GREEN}重启后端服务以应用新的SECRET_KEY...${NC}"
+    docker-compose restart backend
+else
+    echo -e "${RED}警告: SECRET_KEY生成失败，使用临时密钥${NC}"
+fi
+
+# 继续等待其他服务启动
+echo -e "${GREEN}等待其他服务启动...${NC}"
 sleep 30
 
 # 显示容器状态

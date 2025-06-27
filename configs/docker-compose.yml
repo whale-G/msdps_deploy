@@ -51,6 +51,64 @@ services:
     depends_on:
       - db
       - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - app-network
+
+  # 添加定时任务服务
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: msdps_scheduler
+    restart: always
+    command: python manage.py run_scheduler
+    env_file:
+      - ./configs/env/.env
+      - ./configs/env/.env.production
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
+      - ./configs/env/.env:/app/.env
+      - ./configs/env/.env.production:/app/.env.production
+    depends_on:
+      backend:
+        condition: service_healthy
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - app-network
+
+  # 添加Celery worker服务
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: msdps_celery
+    restart: always
+    command: celery -A MSDPT_BE worker -l info
+    env_file:
+      - ./configs/env/.env
+      - ./configs/env/.env.production
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
+      - ./configs/env/.env:/app/.env
+      - ./configs/env/.env.production:/app/.env.production
+    depends_on:
+      backend:
+        condition: service_healthy
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
     networks:
       - app-network
 
