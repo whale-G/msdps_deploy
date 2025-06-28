@@ -11,7 +11,8 @@ check_docker_installation() {
     echo -e "${GREEN}检查Docker和Docker Compose安装状态...${NC}"
     
     local docker_installed=false
-    local docker_compose_installed=false
+    local docker_compose_plugin_installed=false
+    local docker_compose_legacy_installed=false
     
     # 检查Docker
     if command -v docker &> /dev/null; then
@@ -22,20 +23,29 @@ check_docker_installation() {
         echo -e "${YELLOW}Docker未安装${NC}"
     fi
     
-    # 检查Docker Compose
-    if command -v docker-compose &> /dev/null; then
-        docker_compose_installed=true
-        echo -e "${GREEN}Docker Compose已安装${NC}"
-        echo "Docker Compose版本: $(docker-compose --version)"
+    # 检查新版Docker Compose (plugin)
+    if docker compose version &> /dev/null; then
+        docker_compose_plugin_installed=true
+        echo -e "${GREEN}Docker Compose Plugin已安装${NC}"
+        echo "Docker Compose版本: $(docker compose version --short)"
     else
-        echo -e "${YELLOW}Docker Compose未安装${NC}"
+        echo -e "${YELLOW}Docker Compose Plugin未安装${NC}"
+    fi
+    
+    # 检查旧版Docker Compose
+    if command -v docker-compose &> /dev/null; then
+        docker_compose_legacy_installed=true
+        echo -e "${GREEN}传统版Docker Compose已安装${NC}"
+        echo "版本: $(docker-compose --version)"
+    else
+        echo -e "${YELLOW}传统版Docker Compose未安装${NC}"
     fi
     
     # 返回检查结果
-    if [ "$docker_installed" = true ] && [ "$docker_compose_installed" = true ]; then
-        return 0  # 都已安装
+    if [ "$docker_installed" = true ] && [ "$docker_compose_plugin_installed" = true ]; then
+        return 0  # Docker和新版Compose都已安装
     else
-        return 1  # 至少有一个未安装
+        return 1  # 需要安装
     fi
 }
 
@@ -101,19 +111,6 @@ start_apt_docker() {
     fi
 }
 
-# 检查Docker Compose版本是否满足要求
-check_compose_version() {
-    local required_version="2.0.0"
-    local current_version=$(docker-compose --version | awk '{print $3}' | tr -d ',' | sed 's/v//')
-    
-    # 比较版本号
-    if [ "$(printf '%s\n' "$required_version" "$current_version" | sort -V | head -n1)" = "$required_version" ]; then
-        return 0  # 当前版本大于等于要求版本
-    else
-        return 1  # 当前版本小于要求版本
-    fi
-}
-
 # 安装apt版本的Docker和Docker Compose
 install_apt_docker() {
     echo -e "${GREEN}开始安装Docker和Docker Compose...${NC}"
@@ -143,34 +140,34 @@ install_apt_docker() {
     # 安装Docker Engine
     apt-get install -y docker-ce docker-ce-cli containerd.io
     
-    # 安装Docker Compose Plugin（新版本）
-    apt-get install -y docker-compose-plugin
-    
-    # 为了兼容性，也安装传统的docker-compose
-    apt-get install -y docker-compose
-    
     # 启动并启用Docker服务
     systemctl start docker
     systemctl enable docker
     
-    echo -e "${GREEN}Docker和Docker Compose安装完成${NC}"
-
     # 验证Docker安装
     if ! docker --version; then
         echo -e "${RED}Docker安装可能未成功，请检查安装日志${NC}"
         return 1
     fi
 
-    # 验证Docker Compose安装
-    echo -e "${GREEN}验证Docker Compose安装...${NC}"
-    if docker compose version; then
-        echo -e "${GREEN}新版本Docker Compose (plugin) 安装成功${NC}"
-    elif docker-compose --version; then
-        echo -e "${GREEN}传统版本Docker Compose 安装成功${NC}"
+    # 检查是否已安装旧版docker-compose
+    if command -v docker-compose &> /dev/null; then
+        echo -e "${YELLOW}检测到已安装传统版Docker Compose，将保持不变${NC}"
+        echo -e "${GREEN}当前版本: $(docker-compose --version)${NC}"
+    fi
+
+    # 安装新版Docker Compose Plugin
+    echo -e "${GREEN}安装Docker Compose Plugin...${NC}"
+    if apt-get install -y docker-compose-plugin; then
+        echo -e "${GREEN}Docker Compose Plugin安装成功${NC}"
+        echo "版本: $(docker compose version --short)"
     else
-        echo -e "${RED}Docker Compose 安装可能未成功，请检查安装日志${NC}"
+        echo -e "${RED}Docker Compose Plugin安装失败${NC}"
         return 1
     fi
+
+    echo -e "${GREEN}Docker和Docker Compose安装完成${NC}"
+    return 0
 }
 
 # 主函数：处理Docker环境
@@ -178,22 +175,6 @@ setup_docker_environment() {
     # 1. 检查是否已安装
     if check_docker_installation; then
         echo -e "${GREEN}Docker环境已存在，进行版本检查...${NC}"
-        
-        # 检查Docker Compose版本并在需要时升级
-        if ! check_compose_version; then
-            echo -e "${YELLOW}当前Docker Compose版本低于要求，准备升级...${NC}"
-            if upgrade_docker_compose; then
-                echo -e "${GREEN}Docker Compose升级成功${NC}"
-            else
-                echo -e "${RED}Docker Compose升级失败，但不影响基本功能，如有需要，请稍后手动升级${NC}"
-                echo -e "${YELLOW}您可以稍后运行以下命令手动升级：${NC}"
-                echo "sudo apt-get update && sudo apt-get install -y docker-compose"
-                echo "或"
-                echo "curl -L \"https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose"
-            fi
-        else
-            echo -e "${GREEN}Docker Compose版本满足要求${NC}"
-        fi
         
         # 2. 检查版本类型并相应处理
         local docker_type=$(check_docker_version_type)
@@ -209,22 +190,6 @@ setup_docker_environment() {
         # 3. 如果未安装，则安装apt版本
         echo -e "${YELLOW}Docker环境未完全安装，开始安装apt版本...${NC}"
         install_apt_docker
-        
-        # 安装完成后再次检查Docker Compose版本
-        if ! check_compose_version; then
-            echo -e "${YELLOW}安装的Docker Compose版本低于要求，准备升级...${NC}"
-            if upgrade_docker_compose; then
-                echo -e "${GREEN}Docker Compose升级成功${NC}"
-            else
-                echo -e "${RED}Docker Compose升级失败，但不影响基本功能，如有需要，请稍后手动升级${NC}"
-                echo -e "${YELLOW}您可以稍后运行以下命令手动升级：${NC}"
-                echo "sudo apt-get update && sudo apt-get install -y docker-compose"
-                echo "或"
-                echo "curl -L \"https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose"
-            fi
-        else
-            echo -e "${GREEN}Docker Compose版本满足要求${NC}"
-        fi
     fi
 }
 
@@ -269,79 +234,6 @@ check_container_conflicts() {
     if [ "$conflict" = true ]; then
         echo -e "${RED}存在容器名称冲突，请先清理同名容器${NC}"
         exit 1
-    fi
-}
-
-# 升级Docker Compose到指定版本
-upgrade_docker_compose() {
-    echo "开始升级Docker Compose..."
-    local upgrade_success=false
-    
-    # 检查当前版本
-    local current_version=$(docker-compose --version | awk '{print $3}' | tr -d ',')
-    echo "当前Docker Compose版本: $current_version"
-    
-    # 备份当前版本
-    if [ -f "/usr/local/bin/docker-compose" ]; then
-        echo "备份当前Docker Compose..."
-        sudo cp /usr/local/bin/docker-compose /usr/local/bin/docker-compose.backup
-    fi
-    
-    # 尝试通过apt升级
-    echo "尝试通过apt升级Docker Compose..."
-    if apt-cache policy docker-compose | grep -q "2."; then
-        # apt源中有2.x版本，使用apt升级
-        echo "在apt源中找到新版本，开始升级..."
-        if sudo apt-get update && sudo apt-get install -y docker-compose; then
-            echo "apt升级成功！新版本为："
-            docker-compose --version
-            upgrade_success=true
-        else
-            echo "apt升级失败，尝试从GitHub下载..."
-        fi
-    else
-        echo "apt源中没有找到2.x版本，尝试从GitHub下载..."
-    fi
-    
-    # 如果apt升级失败，尝试从GitHub下载
-    if [ "$upgrade_success" = false ]; then
-        echo "从GitHub下载新版本Docker Compose..."
-        if sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose.new; then
-            # 设置执行权限
-            sudo chmod +x /usr/local/bin/docker-compose.new
-            
-            # 测试新版本
-            if /usr/local/bin/docker-compose.new version > /dev/null 2>&1; then
-                # 如果测试成功，替换旧版本
-                sudo mv /usr/local/bin/docker-compose.new /usr/local/bin/docker-compose
-                echo "GitHub下载升级成功！新版本为："
-                docker-compose --version
-                upgrade_success=true
-            else
-                echo "新版本测试失败，正在回滚..."
-                sudo rm -f /usr/local/bin/docker-compose.new
-                if [ -f "/usr/local/bin/docker-compose.backup" ]; then
-                    sudo cp /usr/local/bin/docker-compose.backup /usr/local/bin/docker-compose
-                    echo "已恢复到原版本"
-                fi
-            fi
-        else
-            echo "GitHub下载失败，保持原版本不变"
-            if [ -f "/usr/local/bin/docker-compose.backup" ]; then
-                sudo cp /usr/local/bin/docker-compose.backup /usr/local/bin/docker-compose
-            fi
-        fi
-    fi
-    
-    # 无论使用哪种方式升级，都处理备份文件
-    if [ "$upgrade_success" = true ]; then
-        echo "升级成功完成！"
-        echo "备份文件将保留24小时: /usr/local/bin/docker-compose.backup"
-        echo "如需回滚，请执行: sudo cp /usr/local/bin/docker-compose.backup /usr/local/bin/docker-compose"
-        return 0
-    else
-        echo "升级失败，已回滚到原版本"
-        return 1
     fi
 }
 

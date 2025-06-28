@@ -211,7 +211,8 @@ done
 
 echo -e "${GREEN}开始启动Docker容器...${NC}"
 cd $PROJECT_DIR
-docker-compose up -d --build
+# 使用新版Docker Compose命令
+docker compose up -d --build
 
 # 等待服务启动
 echo -e "${GREEN}等待服务启动...不要停止脚本${NC}"
@@ -230,7 +231,7 @@ if [ -n "$NEW_SECRET_KEY" ]; then
     
     # 重启后端容器以使用新的SECRET_KEY
     echo -e "${GREEN}重启后端服务以应用新的SECRET_KEY...${NC}"
-    docker-compose restart backend
+    docker compose restart backend
 else
     echo -e "${RED}警告: SECRET_KEY生成失败，使用临时密钥${NC}"
 fi
@@ -241,7 +242,7 @@ sleep 30
 
 # 显示容器状态
 echo -e "${GREEN}当前容器状态：${NC}"
-docker-compose ps
+docker compose ps
 
 # 检查容器是否正常运行
 echo -e "${GREEN}检查容器运行状态...${NC}"
