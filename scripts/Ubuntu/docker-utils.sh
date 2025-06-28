@@ -129,12 +129,12 @@ install_apt_docker() {
         gnupg \
         lsb-release
         
-    # 添加Docker官方GPG密钥
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    # 添加清华源的Docker GPG密钥
+    curl -fsSL https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
     
-    # 设置Docker稳定版仓库
+    # 设置清华Docker仓库
     echo \
-        "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu \
         $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
         
     # 更新apt包索引
@@ -143,7 +143,10 @@ install_apt_docker() {
     # 安装Docker Engine
     apt-get install -y docker-ce docker-ce-cli containerd.io
     
-    # 安装Docker Compose
+    # 安装Docker Compose Plugin（新版本）
+    apt-get install -y docker-compose-plugin
+    
+    # 为了兼容性，也安装传统的docker-compose
     apt-get install -y docker-compose
     
     # 启动并启用Docker服务
@@ -155,6 +158,17 @@ install_apt_docker() {
     # 验证Docker安装
     if ! docker --version; then
         echo -e "${RED}Docker安装可能未成功，请检查安装日志${NC}"
+        return 1
+    fi
+
+    # 验证Docker Compose安装
+    echo -e "${GREEN}验证Docker Compose安装...${NC}"
+    if docker compose version; then
+        echo -e "${GREEN}新版本Docker Compose (plugin) 安装成功${NC}"
+    elif docker-compose --version; then
+        echo -e "${GREEN}传统版本Docker Compose 安装成功${NC}"
+    else
+        echo -e "${RED}Docker Compose 安装可能未成功，请检查安装日志${NC}"
         return 1
     fi
 }
