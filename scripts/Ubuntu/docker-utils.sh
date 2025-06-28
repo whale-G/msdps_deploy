@@ -101,6 +101,19 @@ start_apt_docker() {
     fi
 }
 
+# 检查Docker Compose版本是否满足要求
+check_compose_version() {
+    local required_version="2.0.0"
+    local current_version=$(docker-compose --version | awk '{print $3}' | tr -d ',' | sed 's/v//')
+    
+    # 比较版本号
+    if [ "$(printf '%s\n' "$required_version" "$current_version" | sort -V | head -n1)" = "$required_version" ]; then
+        return 0  # 当前版本大于等于要求版本
+    else
+        return 1  # 当前版本小于要求版本
+    fi
+}
+
 # 安装apt版本的Docker和Docker Compose
 install_apt_docker() {
     echo -e "${GREEN}开始安装Docker和Docker Compose...${NC}"
@@ -139,10 +152,22 @@ install_apt_docker() {
     
     echo -e "${GREEN}Docker和Docker Compose安装完成${NC}"
 
-    # 验证安装是否成功
-    if ! docker --version || ! docker-compose --version; then
+    # 验证Docker安装
+    if ! docker --version; then
         echo -e "${RED}Docker安装可能未成功，请检查安装日志${NC}"
         return 1
+    fi
+
+    # 检查Docker Compose版本并在需要时升级
+    if ! check_compose_version; then
+        echo -e "${YELLOW}当前Docker Compose版本低于要求，准备升级...${NC}"
+        if upgrade_docker_compose; then
+            echo -e "${GREEN}Docker Compose升级成功${NC}"
+        else
+            echo -e "${RED}Docker Compose升级失败，但不影响基本功能${NC}"
+        fi
+    else
+        echo -e "${GREEN}Docker Compose版本满足要求${NC}"
     fi
 }
 
@@ -213,7 +238,81 @@ check_container_conflicts() {
     fi
 }
 
+# 升级Docker Compose到指定版本
+upgrade_docker_compose() {
+    echo "开始升级Docker Compose..."
+    local upgrade_success=false
+    
+    # 检查当前版本
+    local current_version=$(docker-compose --version | awk '{print $3}' | tr -d ',')
+    echo "当前Docker Compose版本: $current_version"
+    
+    # 备份当前版本
+    if [ -f "/usr/local/bin/docker-compose" ]; then
+        echo "备份当前Docker Compose..."
+        sudo cp /usr/local/bin/docker-compose /usr/local/bin/docker-compose.backup
+    fi
+    
+    # 尝试通过apt升级
+    echo "尝试通过apt升级Docker Compose..."
+    if apt-cache policy docker-compose | grep -q "2."; then
+        # apt源中有2.x版本，使用apt升级
+        echo "在apt源中找到新版本，开始升级..."
+        if sudo apt-get update && sudo apt-get install -y docker-compose; then
+            echo "apt升级成功！新版本为："
+            docker-compose --version
+            upgrade_success=true
+        else
+            echo "apt升级失败，尝试从GitHub下载..."
+        fi
+    else
+        echo "apt源中没有找到2.x版本，尝试从GitHub下载..."
+    fi
+    
+    # 如果apt升级失败，尝试从GitHub下载
+    if [ "$upgrade_success" = false ]; then
+        echo "从GitHub下载新版本Docker Compose..."
+        if sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose.new; then
+            # 设置执行权限
+            sudo chmod +x /usr/local/bin/docker-compose.new
+            
+            # 测试新版本
+            if /usr/local/bin/docker-compose.new version > /dev/null 2>&1; then
+                # 如果测试成功，替换旧版本
+                sudo mv /usr/local/bin/docker-compose.new /usr/local/bin/docker-compose
+                echo "GitHub下载升级成功！新版本为："
+                docker-compose --version
+                upgrade_success=true
+            else
+                echo "新版本测试失败，正在回滚..."
+                sudo rm -f /usr/local/bin/docker-compose.new
+                if [ -f "/usr/local/bin/docker-compose.backup" ]; then
+                    sudo cp /usr/local/bin/docker-compose.backup /usr/local/bin/docker-compose
+                    echo "已恢复到原版本"
+                fi
+            fi
+        else
+            echo "GitHub下载失败，保持原版本不变"
+            if [ -f "/usr/local/bin/docker-compose.backup" ]; then
+                sudo cp /usr/local/bin/docker-compose.backup /usr/local/bin/docker-compose
+            fi
+        fi
+    fi
+    
+    # 无论使用哪种方式升级，都处理备份文件
+    if [ "$upgrade_success" = true ]; then
+        echo "升级成功完成！"
+        echo "备份文件将保留24小时: /usr/local/bin/docker-compose.backup"
+        echo "如需回滚，请执行: sudo cp /usr/local/bin/docker-compose.backup /usr/local/bin/docker-compose"
+        return 0
+    else
+        echo "升级失败，已回滚到原版本"
+        return 1
+    fi
+}
+
 # 导出主函数
 export -f setup_docker_environment
 export -f check_port_conflicts
 export -f check_container_conflicts
+export -f upgrade_docker_compose
