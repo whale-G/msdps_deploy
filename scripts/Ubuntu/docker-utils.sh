@@ -157,18 +157,6 @@ install_apt_docker() {
         echo -e "${RED}Docker安装可能未成功，请检查安装日志${NC}"
         return 1
     fi
-
-    # 检查Docker Compose版本并在需要时升级
-    if ! check_compose_version; then
-        echo -e "${YELLOW}当前Docker Compose版本低于要求，准备升级...${NC}"
-        if upgrade_docker_compose; then
-            echo -e "${GREEN}Docker Compose升级成功${NC}"
-        else
-            echo -e "${RED}Docker Compose升级失败，但不影响基本功能${NC}"
-        fi
-    else
-        echo -e "${GREEN}Docker Compose版本满足要求${NC}"
-    fi
 }
 
 # 主函数：处理Docker环境
@@ -176,6 +164,22 @@ setup_docker_environment() {
     # 1. 检查是否已安装
     if check_docker_installation; then
         echo -e "${GREEN}Docker环境已存在，进行版本检查...${NC}"
+        
+        # 检查Docker Compose版本并在需要时升级
+        if ! check_compose_version; then
+            echo -e "${YELLOW}当前Docker Compose版本低于要求，准备升级...${NC}"
+            if upgrade_docker_compose; then
+                echo -e "${GREEN}Docker Compose升级成功${NC}"
+            else
+                echo -e "${RED}Docker Compose升级失败，但不影响基本功能，如有需要，请稍后手动升级${NC}"
+                echo -e "${YELLOW}您可以稍后运行以下命令手动升级：${NC}"
+                echo "sudo apt-get update && sudo apt-get install -y docker-compose"
+                echo "或"
+                echo "curl -L \"https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose"
+            fi
+        else
+            echo -e "${GREEN}Docker Compose版本满足要求${NC}"
+        fi
         
         # 2. 检查版本类型并相应处理
         local docker_type=$(check_docker_version_type)
@@ -191,6 +195,22 @@ setup_docker_environment() {
         # 3. 如果未安装，则安装apt版本
         echo -e "${YELLOW}Docker环境未完全安装，开始安装apt版本...${NC}"
         install_apt_docker
+        
+        # 安装完成后再次检查Docker Compose版本
+        if ! check_compose_version; then
+            echo -e "${YELLOW}安装的Docker Compose版本低于要求，准备升级...${NC}"
+            if upgrade_docker_compose; then
+                echo -e "${GREEN}Docker Compose升级成功${NC}"
+            else
+                echo -e "${RED}Docker Compose升级失败，但不影响基本功能，如有需要，请稍后手动升级${NC}"
+                echo -e "${YELLOW}您可以稍后运行以下命令手动升级：${NC}"
+                echo "sudo apt-get update && sudo apt-get install -y docker-compose"
+                echo "或"
+                echo "curl -L \"https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose"
+            fi
+        else
+            echo -e "${GREEN}Docker Compose版本满足要求${NC}"
+        fi
     fi
 }
 
@@ -315,4 +335,3 @@ upgrade_docker_compose() {
 export -f setup_docker_environment
 export -f check_port_conflicts
 export -f check_container_conflicts
-export -f upgrade_docker_compose
