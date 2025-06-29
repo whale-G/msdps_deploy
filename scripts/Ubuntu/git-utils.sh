@@ -23,8 +23,8 @@ clone_with_retry() {
             echo -e "${YELLOW}警告: 目标目录 ${target_dir} 已存在${NC}"
             read -p "是否继续克隆？这可能会覆盖现有文件 (Y/n): " continue_clone
             if [[ $continue_clone =~ ^[Nn]$ ]]; then
-                echo -e "${RED}用户取消操作${NC}"
-                exit 1
+                echo -e "${YELLOW}跳过克隆 ${repo_name}${NC}"
+                return 2  # 返回状态码2表示用户选择跳过
             fi
         fi
 
@@ -40,8 +40,8 @@ clone_with_retry() {
         # 询问用户是否重试
         read -p "是否重试？(Y/n): " retry
         if [[ $retry =~ ^[Nn]$ ]]; then
-            echo -e "${RED}用户取消操作${NC}"
-            exit 1
+            echo -e "${RED}克隆失败，退出部署${NC}"
+            exit 1  # 克隆失败直接退出
         fi
         
         echo "等待 ${wait_time} 秒后重试..."

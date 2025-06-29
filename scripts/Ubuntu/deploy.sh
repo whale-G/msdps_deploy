@@ -28,8 +28,8 @@ PROJECT_DIR="$USER_HOME/msdps_web"
 # 项目配置
 CONFIG_DIR="../../configs"          # 定义配置文件路径
 # 项目Gitee仓库
-FRONTEND_REPO="https://gitclone.com/github.com/whale-G/msdps_vue.git"
-BACKEND_REPO="https://gitclone.com/github.com/whale-G/msdps.git"
+FRONTEND_REPO="https://github.com/whale-G/msdps_vue.git"
+BACKEND_REPO="https://github.com/whale-G/msdps.git"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 
@@ -61,10 +61,22 @@ echo -e "${GREEN}步骤3: 克隆前端和后端代码${NC}"
 # 克隆前端仓库
 echo -e "${GREEN}克隆前端仓库...${NC}"
 clone_with_retry "$FRONTEND_REPO" "$FRONTEND_DIR"
+clone_frontend_status=$?
+
+# 如果用户选择不覆盖现有目录，继续使用现有代码
+if [ $clone_frontend_status -eq 2 ]; then
+    echo -e "${YELLOW}使用现有前端代码继续部署${NC}"
+fi
 
 # 克隆后端仓库
 echo -e "${GREEN}克隆后端仓库...${NC}"
 clone_with_retry "$BACKEND_REPO" "$BACKEND_DIR"
+clone_backend_status=$?
+
+# 如果用户选择不覆盖现有目录，继续使用现有代码
+if [ $clone_backend_status -eq 2 ]; then
+    echo -e "${YELLOW}使用现有后端代码继续部署${NC}"
+fi
 
 # 步骤4: 创建配置文件
 echo -e "${GREEN}步骤4: 创建配置文件${NC}"
