@@ -257,7 +257,7 @@ docker_compose_build_with_retry() {
                 
                 # 清理构建缓存
                 echo -e "${YELLOW}清理构建缓存...${NC}"
-                docker builder prune -f
+                docker image prune -f
                 
                 sleep $wait_time
                 
@@ -280,25 +280,80 @@ docker_compose_up_with_retry() {
     while [ $retry_count -lt $max_retries ]; do
         echo -e "${GREEN}尝试启动容器 (尝试 $((retry_count + 1))/$max_retries)${NC}"
         
-        if docker compose up -d; then
-            echo -e "${GREEN}容器启动成功！${NC}"
+        # 强制清理之前的容器
+        echo -e "${YELLOW}清理现有容器...${NC}"
+        docker compose down --remove-orphans
+        
+        # 启动容器但忽略退出状态
+        echo -e "${GREEN}启动所有容器...${NC}"
+        docker compose up -d || true
+        
+        echo -e "${GREEN}等待容器启动和健康检查 (10秒)...${NC}"
+        sleep 10
+        
+        # 检查容器状态和日志
+        local unhealthy_containers=()
+        echo -e "\n${GREEN}========== 容器状态检查 ==========${NC}"
+        
+        for container in $(docker compose ps --services); do
+            echo -e "\n${YELLOW}检查容器: msdps_${container}${NC}"
+            
+            # 获取容器ID（如果存在）
+            local container_id=$(docker ps -qf "name=msdps_${container}" 2>/dev/null)
+            
+            if [ -z "$container_id" ]; then
+                echo -e "${RED}容器未运行或不存在${NC}"
+                unhealthy_containers+=("msdps_${container}")
+                continue
+            fi
+            
+            # 获取详细状态
+            local status=$(docker inspect --format '{{.State.Status}}' "$container_id")
+            local health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id")
+            local started_at=$(docker inspect --format '{{.State.StartedAt}}' "$container_id")
+            
+            echo "状态: $status"
+            echo "健康状态: $health"
+            echo "启动时间: $started_at"
+            
+            # 如果容器不健康，获取更多信息
+            if [ "$status" != "running" ] || [ "$health" = "unhealthy" ]; then
+                unhealthy_containers+=("msdps_${container}")
+                
+                echo -e "\n${RED}容器异常，显示详细信息：${NC}"
+                
+                # 显示环境变量
+                echo -e "\n${YELLOW}容器环境变量:${NC}"
+                docker exec "$container_id" env 2>/dev/null || echo "无法获取环境变量"
+                
+                # 显示最近的日志
+                echo -e "\n${YELLOW}最近的容器日志:${NC}"
+                docker logs --tail 50 "$container_id" 2>&1 || echo "无法获取日志"
+                
+                # 如果是后端容器，尝试获取更多Python相关信息
+                if [ "$container" = "backend" ]; then
+                    echo -e "\n${YELLOW}Django/Python 错误日志:${NC}"
+                    docker exec "$container_id" python -c "import sys; print('Python 路径:', sys.path)" 2>/dev/null || echo "无法获取Python路径"
+                    docker exec "$container_id" pip list 2>/dev/null || echo "无法获取已安装的Python包"
+                fi
+            fi
+        done
+        
+        if [ ${#unhealthy_containers[@]} -eq 0 ]; then
+            echo -e "\n${GREEN}所有容器启动成功且健康！${NC}"
             return 0
         else
-            retry_count=$((retry_count + 1))
+            echo -e "\n${RED}以下容器未能正常启动或不健康:${NC}"
+            printf '%s\n' "${unhealthy_containers[@]}"
             
+            retry_count=$((retry_count + 1))
             if [ $retry_count -lt $max_retries ]; then
-                echo -e "${YELLOW}启动失败，等待 ${wait_time} 秒后重试...${NC}"
-                
-                # 清理可能的失败容器
-                echo -e "${YELLOW}清理失败的容器...${NC}"
-                docker compose down
-                
+                echo -e "${YELLOW}等待 ${wait_time} 秒后重试...${NC}"
                 sleep $wait_time
-                
-                # 增加等待时间，指数退避
                 wait_time=$((wait_time * 2))
             else
-                echo -e "${RED}达到最大重试次数，启动失败${NC}"
+                echo -e "${RED}达到最大重试次数，启动失败。${NC}"
+                echo -e "${RED}请检查以上日志信息，特别是环境变量和Python包的安装状态。${NC}"
                 return 1
             fi
         fi
