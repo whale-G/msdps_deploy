@@ -211,8 +211,12 @@ done
 
 echo -e "${GREEN}开始启动Docker容器...${NC}"
 cd $PROJECT_DIR
-# 使用新版Docker Compose命令
-docker compose up -d --build
+
+# 使用新的重试函数启动容器
+if ! docker_compose_up_with_retry; then
+    echo -e "${RED}容器启动失败，请检查错误信息并重试${NC}"
+    exit 1
+fi
 
 # 等待服务启动
 echo -e "${GREEN}等待服务启动...不要停止脚本${NC}"

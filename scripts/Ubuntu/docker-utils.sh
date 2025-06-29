@@ -237,7 +237,43 @@ check_container_conflicts() {
     fi
 }
 
+# Docker Compose构建和启动函数
+docker_compose_up_with_retry() {
+    local max_retries=3
+    local retry_count=0
+    local wait_time=30
+
+    while [ $retry_count -lt $max_retries ]; do
+        echo -e "${GREEN}尝试构建和启动容器 (尝试 $((retry_count + 1))/$max_retries)${NC}"
+        
+        if docker compose up -d --build; then
+            echo -e "${GREEN}容器构建和启动成功！${NC}"
+            return 0
+        else
+            retry_count=$((retry_count + 1))
+            
+            if [ $retry_count -lt $max_retries ]; then
+                echo -e "${YELLOW}构建失败，等待 ${wait_time} 秒后重试...${NC}"
+                
+                # 清理可能的失败容器
+                echo -e "${YELLOW}清理失败的容器和构建缓存...${NC}"
+                docker compose down
+                docker builder prune -f
+                
+                sleep $wait_time
+                
+                # 增加等待时间，指数退避
+                wait_time=$((wait_time * 2))
+            else
+                echo -e "${RED}达到最大重试次数，构建失败${NC}"
+                return 1
+            fi
+        fi
+    done
+}
+
 # 导出主函数
 export -f setup_docker_environment
 export -f check_port_conflicts
 export -f check_container_conflicts
+export -f docker_compose_up_with_retry

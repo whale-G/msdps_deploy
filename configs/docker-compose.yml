@@ -111,12 +111,12 @@ services:
     build:                              # 构建配置
       context: ./frontend               # 构建上下文，指定Dockerfile所在目录
       dockerfile: Dockerfile            # 指定Dockerfile文件名
+      args:                             # 构建参数
+        NODE_ENV: production            # 设置NODE_ENV，默认为production
     container_name: msdps_frontend      # 容器名称
     restart: always                     # 自动重启
     env_file:
       - docker-compose.env              # 添加端口映射配置
-    volumes:
-      - ./frontend:/app
     ports:                              # 端口映射
       - "${FRONTEND_PORT:-18080}:80"    # 根据环境变量设置端口映射，默认值为18080
     depends_on:                         # 依赖关系   
