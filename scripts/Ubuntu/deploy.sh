@@ -9,6 +9,7 @@ CONFIG_DIR="$(realpath "$SCRIPT_DIR/../../configs")"
 # 引入工具脚本
 source "$SCRIPT_DIR/docker-utils.sh"
 source "$SCRIPT_DIR/git-utils.sh"
+source "$SCRIPT_DIR/django-utils.sh"
 
 # 遇到错误立即退出
 set -e  
@@ -199,22 +200,23 @@ echo "前端服务端口: $FRONTEND_PORT"
 
 # 步骤7: 构建并启动容器
 echo -e "${GREEN}步骤7: 构建并启动容器${NC}"
-echo -e "${GREEN}检查Docker容器状态${NC}"
-# 检查容器名称冲突
-check_container_conflicts
 
-echo -e "${GREEN}验证配置文件完整性...${NC}"
-for file in "$PROJECT_DIR/docker-compose.yml" "$PROJECT_DIR/docker-compose.env" "$PROJECT_DIR/configs/env/.env" "$PROJECT_DIR/configs/env/.env.production" "$PROJECT_DIR/mysql/init.sql" "$PROJECT_DIR/redis/redis.conf"; do
-    if [ ! -f "$file" ]; then
-        echo -e "${RED}错误：配置文件 $file 不存在${NC}"
-        exit 1
-    fi
-done
-
-echo -e "${GREEN}开始启动Docker容器...${NC}"
+# 构建所有镜像
+echo -e "${GREEN}构建所有服务镜像...${NC}"
 cd $PROJECT_DIR
+if ! docker_compose_build_with_retry; then
+    echo -e "${RED}镜像构建失败${NC}"
+    exit 1
+fi
 
-# 使用新的重试函数启动容器
+# 使用构建好的后端镜像生成 SECRET_KEY
+if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "msdps_web-backend" "$PROJECT_DIR"; then
+    echo -e "${RED}SECRET_KEY生成失败，部署终止${NC}"
+    exit 1
+fi
+
+# 启动所有容器
+echo -e "${GREEN}开始启动所有容器...${NC}"
 if ! docker_compose_up_with_retry; then
     echo -e "${RED}容器启动失败，请检查错误信息并重试${NC}"
     exit 1
@@ -222,28 +224,6 @@ fi
 
 # 等待服务启动
 echo -e "${GREEN}等待服务启动...不要停止脚本${NC}"
-# 等待后端容器启动
-echo -e "${GREEN}等待后端服务启动...${NC}"
-sleep 10
-
-# 使用后端容器生成SECRET_KEY并更新配置文件
-echo -e "${GREEN}生成Django SECRET_KEY...${NC}"
-NEW_SECRET_KEY=$(docker exec msdps_backend python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
-
-if [ -n "$NEW_SECRET_KEY" ]; then
-    # 更新环境变量文件中的SECRET_KEY
-    sed -i "s/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=$NEW_SECRET_KEY/" "$PROJECT_DIR/configs/env/.env.production"
-    echo -e "${GREEN}SECRET_KEY已更新${NC}"
-    
-    # 重启后端容器以使用新的SECRET_KEY
-    echo -e "${GREEN}重启后端服务以应用新的SECRET_KEY...${NC}"
-    docker compose restart backend
-else
-    echo -e "${RED}警告: SECRET_KEY生成失败，使用临时密钥${NC}"
-fi
-
-# 继续等待其他服务启动
-echo -e "${GREEN}等待其他服务启动...${NC}"
 sleep 30
 
 # 显示容器状态
