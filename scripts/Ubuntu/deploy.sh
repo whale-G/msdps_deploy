@@ -87,9 +87,11 @@ echo "创建前端项目Docerfile文件..."
 cp $CONFIG_DIR/frontend/Dockerfile "$PROJECT_DIR/frontend/Dockerfile"
 cp $CONFIG_DIR/frontend/nginx.conf "$PROJECT_DIR/frontend/nginx.conf"
 
-# 创建后端Dockerfile
+# 创建后端Dockerfile和entrypoint.sh
 echo "创建后端Dockerfile文件..."
 cp $CONFIG_DIR/backend/Dockerfile "$PROJECT_DIR/backend/Dockerfile"
+cp $CONFIG_DIR/backend/entrypoint.sh "$PROJECT_DIR/backend/entrypoint.sh"
+chmod +x "$PROJECT_DIR/backend/entrypoint.sh"
 
 # 步骤5: 配置web项目环境变量
 echo -e "${GREEN}步骤5: 配置web项目环境变量${NC}"
