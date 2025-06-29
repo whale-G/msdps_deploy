@@ -44,5 +44,5 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80                 
 # ↑ 这是文档性的，实际端口映射在docker-compose.yml中定义
 
-# 启动Nginx
-CMD ["nginx", "-g", "daemon off;"]# ↑ 以前台方式运行nginx，这是Docker容器的最佳实践
+# 以前台方式运行nginx，这是Docker容器的最佳实践
+CMD ["nginx", "-g", "daemon off;"]

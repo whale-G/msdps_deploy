@@ -206,7 +206,7 @@ check_port_conflicts() {
     
     echo -e "${GREEN}检查端口占用情况...${NC}"
     for port in "${ports[@]}"; do
-        if netstat -tuln | grep -q ":$port "; then
+        if ss -tuln | grep -q ":$port "; then
             echo -e "${RED}端口 $port 已被占用${NC}"
             conflict=true
         fi

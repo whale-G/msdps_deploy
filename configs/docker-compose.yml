@@ -36,8 +36,8 @@ services:
       - ./configs/env/.env.production
     volumes:
       - ./backend:/app
-      - ./logs:/app/logs
-      - ./static:/app/static
+      - ./backend/logs:/app/logs
+      - ./backend/static:/app/static 
       # 将环境变量文件挂载到容器中
       - ./configs/env/.env:/app/.env
       - ./configs/env/.env.production:/app/.env.production
@@ -68,7 +68,7 @@ services:
       - ./configs/env/.env.production
     volumes:
       - ./backend:/app
-      - ./logs:/app/logs
+      - ./backend/logs:/app/logs
       - ./configs/env/.env:/app/.env
       - ./configs/env/.env.production:/app/.env.production
     depends_on:
@@ -94,7 +94,7 @@ services:
       - ./configs/env/.env.production
     volumes:
       - ./backend:/app
-      - ./logs:/app/logs
+      - ./backend/logs:/app/logs
       - ./configs/env/.env:/app/.env
       - ./configs/env/.env.production:/app/.env.production
     depends_on:
