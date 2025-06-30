@@ -16,6 +16,9 @@ source "$SCRIPT_DIR/django-utils.sh"
 # 部署工具函数
 source "$SCRIPT_DIR/deploy-utils.sh"
 
+# 获取服务器IP
+SERVER_IP=$(get_server_ip)
+
 # 遇到错误立即退出
 set -e  
 
@@ -150,6 +153,9 @@ DJANGO_ENV=production
 DEBUG=False
 ALLOWED_HOSTS=*
 
+# Django安全配置
+SECRET_KEY=placeholder_will_be_replaced
+
 # 数据库配置（使用docker-compose中的变量）
 DB_HOST=mysql
 DB_PORT=3306
@@ -236,6 +242,17 @@ echo -e "\n端口配置信息："
 echo "后端服务端口: $BACKEND_PORT"
 echo "前端服务端口: $FRONTEND_PORT"
 
+# 创建前端环境变量配置
+echo "创建前端环境变量配置文件..."
+cat > "$PROJECT_DIR/frontend/.env.production" << EOF
+# API基础URL配置
+VITE_API_BASE_URL=http://${SERVER_IP}:${BACKEND_PORT}
+
+# 其他生产环境配置
+VITE_APP_TITLE=小西数据员
+VITE_APP_ENV=production
+EOF
+
 # 步骤7: 构建并启动容器
 echo -e "${GREEN}步骤7: 构建并启动容器${NC}"
 
@@ -259,9 +276,6 @@ if ! docker_compose_up_with_retry; then
     echo -e "${RED}容器启动失败，请检查错误信息并重试${NC}"
     exit 1
 fi
-
-# 获取服务器IP
-SERVER_IP=$(get_server_ip)
 
 echo -e "${GREEN}部署成功！您现在可以访问以下服务：${NC}"
 echo -e "${GREEN}前端应用可通过 http://${SERVER_IP}:${FRONTEND_PORT} 访问${NC}"

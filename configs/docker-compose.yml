@@ -86,7 +86,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: msdps_celery
+    container_name: msdps_celery_worker
     restart: always
     command: ["/app/entrypoint.sh", "celery"]
     env_file:

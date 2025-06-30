@@ -36,7 +36,13 @@ print(get_random_secret_key())
 
     if [ -n "$NEW_SECRET_KEY" ]; then
         # 更新环境变量文件中的SECRET_KEY
-        sed -i "s/DJANGO_SECRET_KEY=.*/DJANGO_SECRET_KEY=$NEW_SECRET_KEY/" "$env_file"
+        if grep -q "SECRET_KEY=" "$env_file"; then
+            # 如果存在SECRET_KEY行，则替换它
+            sed -i "s|SECRET_KEY=.*|SECRET_KEY=$NEW_SECRET_KEY|" "$env_file"
+        else
+            # 如果不存在，则添加新行
+            echo "SECRET_KEY=$NEW_SECRET_KEY" >> "$env_file"
+        fi
         echo -e "${GREEN}SECRET_KEY已更新${NC}"
         return 0
     else
