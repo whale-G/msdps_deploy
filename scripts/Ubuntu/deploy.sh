@@ -108,7 +108,7 @@ chmod +x "$PROJECT_DIR/backend/entrypoint.sh"
 
 # 步骤5: 配置web项目环境变量
 echo -e "${GREEN}步骤5: 配置web项目环境变量${NC}"
-if [ ! -f "$PROJECT_DIR/configs/env/.env" ] || [ ! -f "$PROJECT_DIR/configs/env/.env.production" ]; then
+if [ ! -f "$PROJECT_DIR/configs/env/.env" ] || [ ! -f "$PROJECT_DIR/configs/env/.env.production" ] || [ ! -f "$PROJECT_DIR/configs/env/mysql.env" ] || [ ! -f "$PROJECT_DIR/configs/env/redis.env" ]; then
     echo "请设置部署所需的环境变量:"
     read -p "MySQLroot密码: root用户的管理员密码, 用于数据库的高级管理操作: " MYSQL_ROOT_PASSWORD
     read -p "MySQL数据库名: " MYSQL_DATABASE
@@ -119,29 +119,50 @@ if [ ! -f "$PROJECT_DIR/configs/env/.env" ] || [ ! -f "$PROJECT_DIR/configs/env/
     read -p "Django管理员初始密码: " DJANGO_SUPERUSER_PASSWORD
     echo
 
-    # 创建配置文件
+    # 创建配置目录
     mkdir -p $PROJECT_DIR/configs/env
     cp "$CONFIG_DIR/env/.env" "$PROJECT_DIR/configs/env/.env"
 
-    # 创建初始环境变量文件，SECRET_KEY先用占位符
-    cat > "$PROJECT_DIR/configs/env/.env.production" << EOF
+    # 创建MySQL环境变量文件
+    cat > "$PROJECT_DIR/configs/env/mysql.env" << EOF
 # MySQL配置
+MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 MYSQL_DATABASE=$MYSQL_DATABASE
 MYSQL_USER=$MYSQL_USER
 MYSQL_PASSWORD=$MYSQL_PASSWORD
+EOF
 
+    # 创建Redis环境变量文件
+    cat > "$PROJECT_DIR/configs/env/redis.env" << EOF
 # Redis配置
 REDIS_PASSWORD=$REDIS_PASSWORD
+EOF
 
-# Django配置
-DJANGO_SECRET_KEY=temp_secret_key_will_be_replaced
-DJANGO_DEBUG=False
-DJANGO_ALLOWED_HOSTS=*
-DJANGO_SUPERUSER_USERNAME=$DJANGO_SUPERUSER_USERNAME
-DJANGO_SUPERUSER_PASSWORD=$DJANGO_SUPERUSER_PASSWORD
+    # 创建Django生产环境配置文件
+    cat > "$PROJECT_DIR/configs/env/.env.production" << EOF
+# 基础配置
+DJANGO_ENV=production
+DEBUG=False
+ALLOWED_HOSTS=*
+
+# 数据库配置（使用docker-compose中的变量）
+DB_HOST=db
+DB_PORT=3306
+DB_NAME=$MYSQL_DATABASE
+DB_USER=$MYSQL_USER
+DB_PASSWORD=$MYSQL_PASSWORD
+
+# Redis配置
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=$REDIS_PASSWORD
+
+# Django管理员配置
+ADMIN_ACCOUNT=$DJANGO_SUPERUSER_USERNAME
+ADMIN_INITIAL_PASSWORD=$DJANGO_SUPERUSER_PASSWORD
 EOF
 else
-    echo ".env文件已存在，使用现有配置"
+    echo "各环境变量文件已存在，使用现有配置"
 fi
 
 # 步骤6: 配置docker容器端口映射

@@ -4,7 +4,7 @@ services:
     container_name: msdps_mysql
     restart: always
     env_file:
-      - ./configs/env/.env.production  # 从这里获取 MYSQL_* 变量
+      - ./configs/env/mysql.env   # 从这里获取 MYSQL_* 变量
     volumes:
       - ./mysql/data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -17,7 +17,7 @@ services:
     restart: always
     command: redis-server /usr/local/etc/redis/redis.conf
     env_file:
-      - ./configs/env/.env.production  # 从这里获取 REDIS_PASSWORD
+      - ./configs/env/redis.env   # 从这里获取 REDIS_PASSWORD
     volumes:
       - ./redis/data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
