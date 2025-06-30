@@ -20,7 +20,19 @@ source "$SCRIPT_DIR/deploy-utils.sh"
 SERVER_IP=$(get_server_ip)
 
 # 遇到错误立即退出
-set -e  
+set -e
+
+# 定义一个函数来处理命令的返回值
+handle_error() {
+    local exit_code=$?
+    # 如果返回值是2（用户选择跳过），则不视为错误
+    if [ $exit_code -ne 2 ]; then
+        exit $exit_code
+    fi
+}
+
+# 设置错误处理函数
+trap 'handle_error' ERR
 
 # 颜色定义
 GREEN='\033[0;32m'
@@ -86,98 +98,8 @@ if [ $clone_backend_status -eq 2 ]; then
     echo -e "${YELLOW}使用现有后端代码继续部署${NC}"
 fi
 
-# 步骤4: 创建配置文件
-echo -e "${GREEN}步骤4: 创建配置文件${NC}"
-cd $SCRIPT_DIR
-
-# 创建web项目docker-compose相关文件
-echo "开始创建web项目docker-compose相关文件..."
-cp $CONFIG_DIR/docker-compose.yml "$PROJECT_DIR/docker-compose.yml"
-touch "$PROJECT_DIR/docker-compose.env"
-
-# 创建MySQL初始化脚本
-echo "开始创建MySQL初始化脚本..."
-cp $CONFIG_DIR/mysql/init.sql "$PROJECT_DIR/mysql/init.sql"
-
-# 创建Redis配置
-echo "开始创建Redis初始化脚本..."
-cp $CONFIG_DIR/redis/redis.conf "$PROJECT_DIR/redis/redis.conf"
-
-# 创建前端Dockerfile和Nginx配置
-echo "创建前端项目Docerfile文件..."
-cp $CONFIG_DIR/frontend/Dockerfile "$PROJECT_DIR/frontend/Dockerfile"
-cp $CONFIG_DIR/frontend/nginx.conf "$PROJECT_DIR/frontend/nginx.conf"
-
-# 创建后端Dockerfile和entrypoint.sh
-echo "创建后端Dockerfile文件..."
-cp $CONFIG_DIR/backend/Dockerfile "$PROJECT_DIR/backend/Dockerfile"
-cp $CONFIG_DIR/backend/entrypoint.sh "$PROJECT_DIR/backend/entrypoint.sh"
-chmod +x "$PROJECT_DIR/backend/entrypoint.sh"
-
-# 步骤5: 配置web项目环境变量
-echo -e "${GREEN}步骤5: 配置web项目环境变量${NC}"
-if [ ! -f "$PROJECT_DIR/configs/env/.env" ] || [ ! -f "$PROJECT_DIR/configs/env/.env.production" ] || [ ! -f "$PROJECT_DIR/configs/env/mysql.env" ] || [ ! -f "$PROJECT_DIR/configs/env/redis.env" ]; then
-    echo "请设置部署所需的环境变量:"
-    read -p "MySQLroot密码: root用户的管理员密码, 用于数据库的高级管理操作: " MYSQL_ROOT_PASSWORD
-    read -p "MySQL数据库名: " MYSQL_DATABASE
-    read -p "MySQL用户名: " MYSQL_USER
-    read -p "MySQL密码: " MYSQL_PASSWORD
-    read -p "Redis密码: " REDIS_PASSWORD
-    read -p "Django管理员用户名: " DJANGO_SUPERUSER_USERNAME
-    read -p "Django管理员初始密码: " DJANGO_SUPERUSER_PASSWORD
-    echo
-
-    # 创建配置目录
-    mkdir -p $PROJECT_DIR/configs/env
-    cp "$CONFIG_DIR/env/.env" "$PROJECT_DIR/configs/env/.env"
-
-    # 创建MySQL环境变量文件
-    cat > "$PROJECT_DIR/configs/env/mysql.env" << EOF
-# MySQL配置
-MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
-MYSQL_DATABASE=$MYSQL_DATABASE
-MYSQL_USER=$MYSQL_USER
-MYSQL_PASSWORD=$MYSQL_PASSWORD
-EOF
-
-    # 创建Redis环境变量文件
-    cat > "$PROJECT_DIR/configs/env/redis.env" << EOF
-# Redis配置
-REDIS_PASSWORD=$REDIS_PASSWORD
-EOF
-
-    # 创建Django生产环境配置文件
-    cat > "$PROJECT_DIR/configs/env/.env.production" << EOF
-# 基础配置
-DJANGO_ENV=production
-DEBUG=False
-ALLOWED_HOSTS=*
-
-# Django安全配置
-SECRET_KEY=placeholder_will_be_replaced
-
-# 数据库配置（使用docker-compose中的变量）
-DB_HOST=mysql
-DB_PORT=3306
-DB_NAME=$MYSQL_DATABASE
-DB_USER=$MYSQL_USER
-DB_PASSWORD=$MYSQL_PASSWORD
-
-# Redis配置
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_PASSWORD=$REDIS_PASSWORD
-
-# Django管理员配置
-ADMIN_ACCOUNT=$DJANGO_SUPERUSER_USERNAME
-ADMIN_INITIAL_PASSWORD=$DJANGO_SUPERUSER_PASSWORD
-EOF
-else
-    echo "各环境变量文件已存在，使用现有配置"
-fi
-
-# 步骤6: 配置docker容器端口映射
-echo -e "${GREEN}步骤6: 配置docker容器端口映射${NC}"
+# 步骤4: 配置docker容器端口映射
+echo -e "${GREEN}步骤4: 配置docker容器端口映射${NC}"
 
 # 检查端口是否被占用的函数
 check_port() {
@@ -242,6 +164,27 @@ echo -e "\n端口配置信息："
 echo "后端服务端口: $BACKEND_PORT"
 echo "前端服务端口: $FRONTEND_PORT"
 
+# 步骤5: 创建配置文件
+echo -e "${GREEN}步骤5: 创建配置文件${NC}"
+cd $SCRIPT_DIR
+
+# 创建web项目docker-compose相关文件
+echo "开始创建web项目docker-compose相关文件..."
+cp $CONFIG_DIR/docker-compose.yml "$PROJECT_DIR/docker-compose.yml"
+touch "$PROJECT_DIR/docker-compose.env"
+
+# 创建MySQL初始化脚本
+echo "开始创建MySQL初始化脚本..."
+cp $CONFIG_DIR/mysql/init.sql "$PROJECT_DIR/mysql/init.sql"
+
+# 创建Redis配置
+echo "开始创建Redis初始化脚本..."
+cp $CONFIG_DIR/redis/redis.conf "$PROJECT_DIR/redis/redis.conf"
+
+# 创建前端Dockerfile和Nginx配置
+echo "创建前端项目Docerfile文件..."
+cp $CONFIG_DIR/frontend/Dockerfile "$PROJECT_DIR/frontend/Dockerfile"
+cp $CONFIG_DIR/frontend/nginx.conf "$PROJECT_DIR/frontend/nginx.conf"
 # 创建前端环境变量配置
 echo "创建前端环境变量配置文件..."
 cat > "$PROJECT_DIR/frontend/.env.production" << EOF
@@ -252,6 +195,79 @@ VITE_API_BASE_URL=http://${SERVER_IP}:${BACKEND_PORT}
 VITE_APP_TITLE=小西数据员
 VITE_APP_ENV=production
 EOF
+
+# 创建后端Dockerfile和entrypoint.sh
+echo "创建后端Dockerfile文件..."
+cp $CONFIG_DIR/backend/Dockerfile "$PROJECT_DIR/backend/Dockerfile"
+cp $CONFIG_DIR/backend/entrypoint.sh "$PROJECT_DIR/backend/entrypoint.sh"
+chmod +x "$PROJECT_DIR/backend/entrypoint.sh"
+
+# 步骤6: 配置web项目环境变量
+echo -e "${GREEN}步骤6: 配置web项目环境变量${NC}"
+if [ ! -f "$PROJECT_DIR/configs/env/.env" ] || [ ! -f "$PROJECT_DIR/configs/env/.env.production" ] || [ ! -f "$PROJECT_DIR/configs/env/mysql.env" ] || [ ! -f "$PROJECT_DIR/configs/env/redis.env" ]; then
+    echo "请设置部署所需的环境变量:"
+    read -p "MySQLroot密码: root用户的管理员密码, 用于数据库的高级管理操作: " MYSQL_ROOT_PASSWORD
+    read -p "MySQL数据库名: " MYSQL_DATABASE
+    read -p "MySQL用户名: " MYSQL_USER
+    read -p "MySQL密码: " MYSQL_PASSWORD
+    read -p "Redis密码: " REDIS_PASSWORD
+    read -p "Django管理员用户名: " DJANGO_SUPERUSER_USERNAME
+    read -p "Django管理员初始密码: " DJANGO_SUPERUSER_PASSWORD
+    echo
+
+    # 创建配置目录
+    mkdir -p $PROJECT_DIR/configs/env
+    cp "$CONFIG_DIR/env/.env" "$PROJECT_DIR/configs/env/.env"
+
+    # 创建MySQL环境变量文件
+    cat > "$PROJECT_DIR/configs/env/mysql.env" << EOF
+# MySQL配置
+MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+MYSQL_DATABASE=$MYSQL_DATABASE
+MYSQL_USER=$MYSQL_USER
+MYSQL_PASSWORD=$MYSQL_PASSWORD
+EOF
+
+    # 创建Redis环境变量文件
+    cat > "$PROJECT_DIR/configs/env/redis.env" << EOF
+# Redis配置
+REDIS_PASSWORD=$REDIS_PASSWORD
+EOF
+
+    # 创建Django生产环境配置文件
+    cat > "$PROJECT_DIR/configs/env/.env.production" << EOF
+# 基础配置
+DJANGO_ENV=production
+DEBUG=False
+ALLOWED_HOSTS=*
+
+# CORS跨域配置
+CORS_ALLOW_ALL_ORIGINS=False
+CORS_ALLOW_CREDENTIALS=True
+CORS_ALLOWED_ORIGINS=http://${SERVER_IP}:${FRONTEND_PORT}
+
+# Django安全配置
+SECRET_KEY=placeholder_will_be_replaced
+
+# 数据库配置（使用docker-compose中的变量）
+DB_HOST=mysql
+DB_PORT=3306
+DB_NAME=$MYSQL_DATABASE
+DB_USER=$MYSQL_USER
+DB_PASSWORD=$MYSQL_PASSWORD
+
+# Redis配置
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=$REDIS_PASSWORD
+
+# Django管理员配置
+ADMIN_ACCOUNT=$DJANGO_SUPERUSER_USERNAME
+ADMIN_INITIAL_PASSWORD=$DJANGO_SUPERUSER_PASSWORD
+EOF
+else
+    echo "各环境变量文件已存在，使用现有配置"
+fi
 
 # 步骤7: 构建并启动容器
 echo -e "${GREEN}步骤7: 构建并启动容器${NC}"
