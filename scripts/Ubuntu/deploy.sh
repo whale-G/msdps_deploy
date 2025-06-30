@@ -7,9 +7,14 @@ SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 CONFIG_DIR="$(realpath "$SCRIPT_DIR/../../configs")"
 
 # 引入工具脚本
+# docker工具函数
 source "$SCRIPT_DIR/docker-utils.sh"
+# git工具函数
 source "$SCRIPT_DIR/git-utils.sh"
+# django工具函数
 source "$SCRIPT_DIR/django-utils.sh"
+# 部署工具函数
+source "$SCRIPT_DIR/deploy-utils.sh"
 
 # 遇到错误立即退出
 set -e  
@@ -146,7 +151,7 @@ DEBUG=False
 ALLOWED_HOSTS=*
 
 # 数据库配置（使用docker-compose中的变量）
-DB_HOST=db
+DB_HOST=mysql
 DB_PORT=3306
 DB_NAME=$MYSQL_DATABASE
 DB_USER=$MYSQL_USER
@@ -255,62 +260,11 @@ if ! docker_compose_up_with_retry; then
     exit 1
 fi
 
-# 等待服务启动
-echo -e "${GREEN}等待服务启动...不要停止脚本${NC}"
-sleep 30
+# 获取服务器IP
+SERVER_IP=$(get_server_ip)
 
-# 显示容器状态
-echo -e "${GREEN}当前容器状态：${NC}"
-docker compose ps
-
-# 检查容器是否正常运行
-echo -e "${GREEN}检查容器运行状态...${NC}"
-
-# 定义需要检查的容器
-CONTAINERS=("msdps_frontend" "msdps_backend" "msdps_mysql" "msdps_redis")
-
-# 检查函数
-check_container() {
-    local container=$1
-    # 检查容器是否存在且运行
-    if [ "$(docker ps -q -f name=$container)" ]; then
-        # 检查容器状态
-        local status=$(docker inspect -f '{{.State.Status}}' $container)
-        if [ "$status" = "running" ]; then
-            echo -e "${GREEN}✓ $container 容器运行正常${NC}"
-            return 0
-        else
-            echo -e "${RED}✗ $container 容器状态异常: $status${NC}"
-            return 1
-        fi
-    else
-        echo -e "${RED}✗ $container 容器不存在或未运行${NC}"
-        return 1
-    fi
-}
-
-# 检查所有容器
-FAILED=0
-for container in "${CONTAINERS[@]}"; do
-    if ! check_container $container; then
-        FAILED=1
-    fi
-done
-
-# 如果有容器运行异常，显示日志并退出
-if [ $FAILED -eq 1 ]; then
-    echo -e "${RED}某些容器运行异常，显示详细日志：${NC}"
-    for container in "${CONTAINERS[@]}"; do
-        echo -e "\n${YELLOW}$container 容器日志：${NC}"
-        docker logs $container
-    done
-    echo -e "${RED}部署失败：某些容器未能正常运行，请检查上述日志解决问题。${NC}"
-    exit 1
-else
-    echo -e "${GREEN}所有容器运行正常！${NC}"
-    echo -e "${GREEN}部署成功！您现在可以访问以下服务：${NC}"
-    echo -e "${GREEN}前端应用可通过 http://服务器IP 访问${NC}"
-    echo -e "${GREEN}Django管理后台可通过 http://服务器IP/admin 访问${NC}"
-    echo -e "${GREEN}管理员账号: $DJANGO_SUPERUSER_USERNAME${NC}"
-    echo -e "${GREEN}管理员密码: $DJANGO_SUPERUSER_PASSWORD${NC}"
-fi
+echo -e "${GREEN}部署成功！您现在可以访问以下服务：${NC}"
+echo -e "${GREEN}前端应用可通过 http://${SERVER_IP}:${FRONTEND_PORT} 访问${NC}"
+echo -e "${GREEN}Django管理后台可通过 http://${SERVER_IP}:${BACKEND_PORT}/admin 访问${NC}"
+echo -e "${GREEN}管理员账号: $DJANGO_SUPERUSER_USERNAME${NC}"
+echo -e "${GREEN}管理员初始密码: $DJANGO_SUPERUSER_PASSWORD${NC}"

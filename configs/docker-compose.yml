@@ -1,5 +1,5 @@
 services:
-  db:
+  mysql:
     image: mysql:8.0
     container_name: msdps_mysql
     restart: always
@@ -44,7 +44,7 @@ services:
     ports:
       - "${BACKEND_PORT:-18000}:8000"  # 根据环境变量设置端口映射，默认值为18000
     depends_on:
-      - db
+      - mysql
       - redis
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
@@ -74,7 +74,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-      db:
+      mysql:
         condition: service_started
       redis:
         condition: service_started
@@ -100,7 +100,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-      db:
+      mysql:
         condition: service_started
       redis:
         condition: service_started
