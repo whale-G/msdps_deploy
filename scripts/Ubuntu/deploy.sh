@@ -234,6 +234,9 @@ EOF
 REDIS_PASSWORD=$REDIS_PASSWORD
 EOF
 
+    # 更新Redis配置文件中的密码
+    sed -i "s/requirepass .*/requirepass $REDIS_PASSWORD/" "$PROJECT_DIR/configs/redis/redis.conf"
+
     # 创建Django生产环境配置文件
     cat > "$PROJECT_DIR/configs/env/.env.production" << EOF
 # 基础配置
@@ -260,6 +263,7 @@ DB_PASSWORD=$MYSQL_PASSWORD
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=$REDIS_PASSWORD
+REDIS_DB=0
 
 # Django管理员配置
 ADMIN_ACCOUNT=$DJANGO_SUPERUSER_USERNAME
