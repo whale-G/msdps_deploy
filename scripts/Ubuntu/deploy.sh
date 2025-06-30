@@ -235,7 +235,7 @@ REDIS_PASSWORD=$REDIS_PASSWORD
 EOF
 
     # 更新Redis配置文件中的密码
-    sed -i "s/requirepass .*/requirepass $REDIS_PASSWORD/" "$PROJECT_DIR/configs/redis/redis.conf"
+    sed -i "s/requirepass .*/requirepass $REDIS_PASSWORD/" "$PROJECT_DIR/redis/redis.conf"
 
     # 创建Django生产环境配置文件
     cat > "$PROJECT_DIR/configs/env/.env.production" << EOF
