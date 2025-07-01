@@ -3,11 +3,17 @@ services:
     image: mysql:8.0
     container_name: msdps_mysql
     restart: always
+    user: "999:999"
     env_file:
       - ./configs/env/mysql.env   # 从这里获取 MYSQL_* 变量
     volumes:
       - ./mysql/data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - app-network
 
@@ -15,6 +21,7 @@ services:
     image: redis:6.2
     container_name: msdps_redis
     restart: always
+    user: "999:999"
     command: redis-server /usr/local/etc/redis/redis.conf
     env_file:
       - ./configs/env/redis.env   # 从这里获取 REDIS_PASSWORD

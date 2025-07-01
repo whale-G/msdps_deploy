@@ -220,7 +220,7 @@ check_port_conflicts() {
 
 # 检查容器名称冲突
 check_container_conflicts() {
-    local containers=("msdps_mysql" "msdps_redis" "msdps_backend" "msdps_frontend")
+    local containers=("msdps_mysql" "msdps_redis" "msdps_backend" "msdps_frontend" "msdps_scheduler" "msdps_celery_worker")
     local conflict=false
     
     echo -e "${GREEN}检查容器名称冲突...${NC}"
@@ -276,6 +276,9 @@ docker_compose_up_with_retry() {
     local max_retries=3
     local retry_count=0
     local wait_time=30
+
+    # 首先检查容器名称冲突
+    check_container_conflicts
 
     while [ $retry_count -lt $max_retries ]; do
         echo -e "${GREEN}尝试启动容器 (尝试 $((retry_count + 1))/$max_retries)${NC}"
@@ -363,6 +366,5 @@ docker_compose_up_with_retry() {
 # 导出主函数
 export -f setup_docker_environment
 export -f check_port_conflicts
-export -f check_container_conflicts
 export -f docker_compose_build_with_retry
 export -f docker_compose_up_with_retry
