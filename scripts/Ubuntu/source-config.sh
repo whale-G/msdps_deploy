@@ -93,48 +93,6 @@ else
         echo -e "${GREEN}🧹 清除DNS缓存...${NC}"
         systemd-resolve --flush-caches
     fi
-
-    echo -e "${GREEN}✅ GitHub hosts加速配置完成！${NC}"
-fi
-
-# 步骤3: 配置Docker镜像加速
-print_step 3 3 "配置Docker镜像加速"
-
-echo -e "${YELLOW}ℹ️  请按照以下步骤操作：${NC}"
-echo -e "${YELLOW}1. 访问阿里云控制台 https://cr.console.aliyun.com/${NC}"
-echo -e "${YELLOW}2. 点击左侧「镜像工具」-「镜像加速器」${NC}"
-echo -e "${YELLOW}3. 在页面上可以找到您专属的加速器地址${NC}"
-
-read -p "💡 请输入您的专属加速器地址 (形如 https://xxxxxx.mirror.aliyuncs.com): " ACCELERATOR_URL
-
-echo -e "${GREEN}📁 创建Docker配置目录...${NC}"
-mkdir -p /etc/docker
-
-echo -e "${GREEN}📝 配置Docker镜像加速...${NC}"
-cat > /etc/docker/daemon.json << EOF
-{
-  "registry-mirrors": [
-    "${ACCELERATOR_URL}",
-    "https://docker.m.daocloud.io"
-  ],
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "100m",
-    "max-file": "3"
-  }
-}
-EOF
-
-echo -e "${GREEN}🔄 重启Docker服务...${NC}"
-systemctl daemon-reload
-systemctl restart docker
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ 阿里云容器镜像服务配置成功！${NC}"
-    echo -e "${GREEN}✨ 您现在可以使用加速器加速镜像拉取了${NC}"
-else
-    echo -e "${RED}❌ Docker服务重启失败，请检查配置是否正确${NC}"
-    exit 1
 fi
 
 print_separator
@@ -142,6 +100,5 @@ echo -e "${GREEN}✅ 所有配置完成！${NC}"
 echo -e "${CYAN}📝 配置总结：${NC}"
 echo -e "  ✓ Ubuntu软件源已更新为清华源"
 echo -e "  ✓ GitHub访问已配置加速"
-echo -e "  ✓ Docker镜像已配置加速"
 print_separator
 echo -e "\n${BOLD}🚀 请继续执行部署脚本（deploy.sh）...${NC}\n"

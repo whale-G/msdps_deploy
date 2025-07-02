@@ -8,7 +8,7 @@ NC='\033[0m' # No Color
 
 # 检查Docker和Docker Compose是否安装
 check_docker_installation() {
-    echo -e "${GREEN}检查Docker和Docker Compose安装状态...${NC}"
+    echo -e "${GREEN}🔍 检查Docker和Docker Compose安装状态...${NC}"
     
     local docker_installed=false
     local docker_compose_plugin_installed=false
@@ -17,28 +17,28 @@ check_docker_installation() {
     # 检查Docker
     if command -v docker &> /dev/null; then
         docker_installed=true
-        echo -e "${GREEN}Docker已安装${NC}"
-        echo "Docker版本: $(docker --version)"
+        echo -e "${GREEN}✅ Docker已安装${NC}"
+        echo "📋 Docker版本: $(docker --version)"
     else
-        echo -e "${YELLOW}Docker未安装${NC}"
+        echo -e "${YELLOW}❌ Docker未安装${NC}"
     fi
     
     # 检查新版Docker Compose (plugin)
     if docker compose version &> /dev/null; then
         docker_compose_plugin_installed=true
-        echo -e "${GREEN}Docker Compose Plugin已安装${NC}"
-        echo "Docker Compose版本: $(docker compose version --short)"
+        echo -e "${GREEN}✅ Docker Compose Plugin已安装${NC}"
+        echo "📋 Docker Compose版本: $(docker compose version --short)"
     else
-        echo -e "${YELLOW}Docker Compose Plugin未安装${NC}"
+        echo -e "${YELLOW}❌ Docker Compose Plugin未安装${NC}"
     fi
     
     # 检查旧版Docker Compose
     if command -v docker-compose &> /dev/null; then
         docker_compose_legacy_installed=true
-        echo -e "${GREEN}传统版Docker Compose已安装${NC}"
-        echo "版本: $(docker-compose --version)"
+        echo -e "${GREEN}ℹ️ 传统版Docker Compose已安装${NC}"
+        echo "📋 版本: $(docker-compose --version)"
     else
-        echo -e "${YELLOW}传统版Docker Compose未安装${NC}"
+        echo -e "${YELLOW}ℹ️ 传统版Docker Compose未安装${NC}"
     fi
     
     # 返回检查结果
@@ -60,65 +60,62 @@ check_docker_version_type() {
 
 # 启动snap版本的Docker
 start_snap_docker() {
-    echo -e "${GREEN}正在启动Snap版本的Docker服务...${NC}"
+    echo -e "${GREEN}🚀 正在启动Snap版本的Docker服务...${NC}"
     
     # 检查Docker是否正在运行
     if ! snap services | grep -q "docker.*active"; then
-        echo -e "${YELLOW}Docker服务未运行，正在启动...${NC}"
+        echo -e "${YELLOW}⚠️ Docker服务未运行，正在启动...${NC}"
         snap start docker
     fi
     
-    # 重启Docker服务
-    echo -e "${GREEN}重启Docker服务...${NC}"
+    echo -e "${GREEN}🔄 重启Docker服务...${NC}"
     snap restart docker
     
-    # 等待服务就绪
-    echo -e "${GREEN}等待Docker服务就绪...${NC}"
+    echo -e "${GREEN}⏳ 等待Docker服务就绪...${NC}"
     sleep 5
     
     # 验证服务状态
     if docker info >/dev/null 2>&1; then
-        echo -e "${GREEN}Docker服务运行正常${NC}"
+        echo -e "${GREEN}✅ Docker服务运行正常${NC}"
         return 0
     else
-        echo -e "${RED}Docker服务启动失败${NC}"
+        echo -e "${RED}❌ Docker服务启动失败${NC}"
         return 1
     fi
 }
 
 # 启动apt版本的Docker
 start_apt_docker() {
-    echo -e "${GREEN}正在启动APT版本的Docker服务...${NC}"
+    echo -e "${GREEN}🚀 正在启动APT版本的Docker服务...${NC}"
     
     # 检查Docker是否正在运行
     if ! systemctl is-active docker >/dev/null 2>&1; then
-        echo -e "${YELLOW}Docker服务未运行，正在启动...${NC}"
+        echo -e "${YELLOW}⚠️ Docker服务未运行，正在启动...${NC}"
         systemctl start docker
     fi
     
-    # 重启Docker服务
-    echo -e "${GREEN}重启Docker服务...${NC}"
+    echo -e "${GREEN}🔄 重启Docker服务...${NC}"
     systemctl daemon-reload
     systemctl restart docker
     
     # 验证服务状态
     if systemctl is-active docker >/dev/null 2>&1; then
-        echo -e "${GREEN}Docker服务运行正常${NC}"
+        echo -e "${GREEN}✅ Docker服务运行正常${NC}"
         return 0
     else
-        echo -e "${RED}Docker服务启动失败${NC}"
+        echo -e "${RED}❌ Docker服务启动失败${NC}"
         return 1
     fi
 }
 
 # 安装apt版本的Docker和Docker Compose
 install_apt_docker() {
-    echo -e "${GREEN}开始安装Docker和Docker Compose...${NC}"
+    echo -e "${GREEN}🚀 开始安装Docker和Docker Compose...${NC}"
     
-    # 更新包索引
+    echo -e "${GREEN}📦 更新包索引...${NC}"
     apt-get update
     
-    # 安装必要的依赖包
+    echo -e "${GREEN}📥 安装必要的依赖包...${NC}"
     apt-get install -y \
         apt-transport-https \
         ca-certificates \
@@ -126,114 +123,118 @@ install_apt_docker() {
         gnupg \
         lsb-release
         
-    # 添加清华源的Docker GPG密钥
+    echo -e "${GREEN}🔑 添加Docker GPG密钥...${NC}"
     curl -fsSL https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
     
-    # 设置清华Docker仓库
+    echo -e "${GREEN}📝 配置Docker仓库...${NC}"
     echo \
         "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu \
         $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
         
-    # 更新apt包索引
+    echo -e "${GREEN}⚙️ 安装Docker Engine...${NC}"
     apt-get update
-    
-    # 安装Docker Engine
     apt-get install -y docker-ce docker-ce-cli containerd.io
     
-    # 启动并启用Docker服务
+    echo -e "${GREEN}🔄 启动Docker服务...${NC}"
     systemctl start docker
     systemctl enable docker
     
-    # 验证Docker安装
     if ! docker --version; then
-        echo -e "${RED}Docker安装可能未成功，请检查安装日志${NC}"
+        echo -e "${RED}❌ Docker安装失败，请检查安装日志${NC}"
         return 1
     fi
 
-    # 检查是否已安装旧版docker-compose
     if command -v docker-compose &> /dev/null; then
-        echo -e "${YELLOW}检测到已安装传统版Docker Compose，将保持不变${NC}"
-        echo -e "${GREEN}当前版本: $(docker-compose --version)${NC}"
+        echo -e "${YELLOW}ℹ️ 检测到已安装传统版Docker Compose${NC}"
+        echo -e "${GREEN}✅ 当前版本: $(docker-compose --version)${NC}"
     fi
 
-    # 安装新版Docker Compose Plugin
-    echo -e "${GREEN}安装Docker Compose Plugin...${NC}"
+    echo -e "${GREEN}📥 安装Docker Compose Plugin...${NC}"
     if apt-get install -y docker-compose-plugin; then
-        echo -e "${GREEN}Docker Compose Plugin安装成功${NC}"
-        echo "版本: $(docker compose version --short)"
+        echo -e "${GREEN}✅ Docker Compose Plugin安装成功${NC}"
+        echo "📋 版本: $(docker compose version --short)"
     else
-        echo -e "${RED}Docker Compose Plugin安装失败${NC}"
+        echo -e "${RED}❌ Docker Compose Plugin安装失败${NC}"
         return 1
     fi
 
-    echo -e "${GREEN}Docker和Docker Compose安装完成${NC}"
+    echo -e "${GREEN}✨ Docker和Docker Compose安装完成${NC}"
     return 0
 }
 
-# 主函数：处理Docker环境
-setup_docker_environment() {
-    # 1. 检查是否已安装
-    if check_docker_installation; then
-        echo -e "${GREEN}Docker环境已存在，进行版本检查...${NC}"
-        
-        # 2. 检查版本类型并相应处理
-        local docker_type=$(check_docker_version_type)
-        echo -e "${GREEN}检测到${docker_type}版本的Docker${NC}"
-        
-        # 根据版本类型启动服务
-        if [ "$docker_type" = "snap" ]; then
-            start_snap_docker
-        else
-            start_apt_docker
-        fi
-    else
-        # 3. 如果未安装，则安装apt版本
-        echo -e "${YELLOW}Docker环境未完全安装，开始安装apt版本...${NC}"
-        install_apt_docker
-    fi
+# 配置Docker镜像源
+configure_docker_mirror() {
+    echo -e "${GREEN}📝 配置Docker镜像加速...${NC}"
+    cat > /etc/docker/daemon.json << EOF
+{
+    "registry-mirrors": [
+        "https://docker.xuanyuan.me",
+        "https://docker.1ms.run"
+    ]
+}
+EOF
+
+    echo -e "${GREEN}✅ Docker镜像源配置成功！${NC}"
+
+    # 重启Docker服务
+    echo -e "${GREEN}重启Docker服务...${NC}"
+    systemctl daemon-reload
+    systemctl restart docker 
 }
 
 # 检查端口占用
 check_port_conflicts() {
-    local ports=("$1" "$2")  # 接收端口参数
+    local ports=("$1" "$2")
     local conflict=false
 
-    # 添加参数验证
     if [ -z "$1" ] || [ -z "$2" ]; then
-        echo -e "${RED}错误：端口参数不能为空${NC}"
+        echo -e "${RED}❌ 错误：端口参数不能为空${NC}"
         exit 1
     fi
     
-    echo -e "${GREEN}检查端口占用情况...${NC}"
+    echo -e "${GREEN}🔍 检查端口占用情况...${NC}"
     for port in "${ports[@]}"; do
         if ss -tuln | grep -q ":$port "; then
-            echo -e "${RED}端口 $port 已被占用${NC}"
+            echo -e "${RED}⚠️ 端口 $port 已被占用${NC}"
             conflict=true
         fi
     done
     
     if [ "$conflict" = true ]; then
-        echo -e "${RED}存在端口冲突，请修改配置后重试${NC}"
+        echo -e "${RED}❌ 存在端口冲突，请修改配置后重试${NC}"
         exit 1
     fi
+
+    echo -e "${GREEN}✅ 端口检查通过${NC}"
 }
 
-# 检查容器名称冲突
+# 检查容器名称冲突并清理已存在的项目容器
 check_container_conflicts() {
     local containers=("msdps_mysql" "msdps_redis" "msdps_backend" "msdps_frontend" "msdps_scheduler" "msdps_celery_worker")
     local conflict=false
+    local need_cleanup=false
     
-    echo -e "${GREEN}检查容器名称冲突...${NC}"
+    echo -e "${GREEN}🔍 检查容器名称冲突...${NC}"
     for container in "${containers[@]}"; do
         if docker ps -a --format '{{.Names}}' | grep -q "^$container$"; then
-            echo -e "${RED}容器名 $container 已存在${NC}"
-            conflict=true
+            echo -e "${YELLOW}⚠️ 发现已存在的容器: $container${NC}"
+            need_cleanup=true
+            
+            # 检查容器是否在运行
+            if docker ps --format '{{.Names}}' | grep -q "^$container$"; then
+                echo -e "${YELLOW}📌 容器 $container 正在运行，将被停止并移除${NC}"
+                docker stop "$container" >/dev/null 2>&1
+            else
+                echo -e "${YELLOW}📌 容器 $container 未运行，将被移除${NC}"
+            fi
+            docker rm "$container" >/dev/null 2>&1
         fi
     done
     
-    if [ "$conflict" = true ]; then
-        echo -e "${RED}存在容器名称冲突，请先清理同名容器${NC}"
-        exit 1
+    if [ "$need_cleanup" = true ]; then
+        echo -e "${GREEN}✅ 已清理所有冲突的容器${NC}"
+    else
+        echo -e "${GREEN}✅ 未发现需要清理的容器${NC}"
     fi
 }
 
@@ -244,19 +245,18 @@ docker_compose_build_with_retry() {
     local wait_time=30
 
     while [ $retry_count -lt $max_retries ]; do
-        echo -e "${GREEN}尝试构建镜像 (尝试 $((retry_count + 1))/$max_retries)${NC}"
+        echo -e "${GREEN}🏗️ 尝试构建镜像 (尝试 $((retry_count + 1))/$max_retries)${NC}"
         
         if docker compose build; then
-            echo -e "${GREEN}镜像构建成功！${NC}"
+            echo -e "${GREEN}✅ 镜像构建成功！${NC}"
             return 0
         else
             retry_count=$((retry_count + 1))
             
             if [ $retry_count -lt $max_retries ]; then
-                echo -e "${YELLOW}构建失败，等待 ${wait_time} 秒后重试...${NC}"
+                echo -e "${YELLOW}⚠️ 构建失败，等待 ${wait_time} 秒后重试...${NC}"
                 
-                # 清理构建缓存
-                echo -e "${YELLOW}清理构建缓存...${NC}"
+                echo -e "${YELLOW}🧹 清理构建缓存...${NC}"
                 docker image prune -f
                 
                 sleep $wait_time
@@ -264,7 +264,7 @@ docker_compose_build_with_retry() {
                 # 增加等待时间，指数退避
                 wait_time=$((wait_time * 2))
             else
-                echo -e "${RED}达到最大重试次数，构建失败${NC}"
+                echo -e "${RED}❌ 达到最大重试次数，构建失败${NC}"
                 return 1
             fi
         fi
@@ -275,28 +275,25 @@ docker_compose_build_with_retry() {
 docker_compose_up_with_retry() {
     local max_retries=3
     local retry_count=0
-    local wait_time=30
+    local wait_time=5
 
-    # 首先检查容器名称冲突
+    # 首先检查容器名称冲突并清理
     check_container_conflicts
 
+    echo -e "${GREEN}🚀 开始启动容器服务...${NC}"
+    
     while [ $retry_count -lt $max_retries ]; do
-        echo -e "${GREEN}尝试启动容器 (尝试 $((retry_count + 1))/$max_retries)${NC}"
-        
-        # 强制清理之前的容器
-        echo -e "${YELLOW}清理现有容器...${NC}"
-        docker compose down --remove-orphans
+        echo -e "${GREEN}🔄 尝试启动容器 (尝试 $((retry_count + 1))/$max_retries)${NC}"
         
         # 启动容器但忽略退出状态
         echo -e "${GREEN}启动所有容器...${NC}"
         docker compose up -d || true
         
-        echo -e "${GREEN}等待容器启动和健康检查 (10秒)...${NC}"
+        echo -e "${GREEN}⏳ 等待容器启动和健康检查 (10秒)...${NC}"
         sleep 10
-        
         # 检查容器状态和日志
         local unhealthy_containers=()
-        echo -e "\n${GREEN}========== 容器状态检查 ==========${NC}"
+        echo -e "\n${GREEN}📋 ========== 容器状态检查 ==========${NC}"
         
         for container in $(docker compose ps --services); do
             echo -e "\n${YELLOW}检查容器: msdps_${container}${NC}"
@@ -323,19 +320,17 @@ docker_compose_up_with_retry() {
             if [ "$status" != "running" ] || [ "$health" = "unhealthy" ]; then
                 unhealthy_containers+=("msdps_${container}")
                 
-                echo -e "\n${RED}容器异常，显示详细信息：${NC}"
+                echo -e "\n${RED}⚠️ 容器异常，详细信息：${NC}"
                 
-                # 显示环境变量
-                echo -e "\n${YELLOW}容器环境变量:${NC}"
+                echo -e "\n${YELLOW}🔍 容器环境变量:${NC}"
                 docker exec "$container_id" env 2>/dev/null || echo "无法获取环境变量"
                 
-                # 显示最近的日志
-                echo -e "\n${YELLOW}最近的容器日志:${NC}"
+                echo -e "\n${YELLOW}📜 最近的容器日志:${NC}"
                 docker logs --tail 50 "$container_id" 2>&1 || echo "无法获取日志"
                 
                 # 如果是后端容器，尝试获取更多Python相关信息
                 if [ "$container" = "backend" ]; then
-                    echo -e "\n${YELLOW}Django/Python 错误日志:${NC}"
+                    echo -e "\n${YELLOW}🐍 Django/Python 错误日志:${NC}"
                     docker exec "$container_id" python -c "import sys; print('Python 路径:', sys.path)" 2>/dev/null || echo "无法获取Python路径"
                     docker exec "$container_id" pip list 2>/dev/null || echo "无法获取已安装的Python包"
                 fi
@@ -343,15 +338,15 @@ docker_compose_up_with_retry() {
         done
         
         if [ ${#unhealthy_containers[@]} -eq 0 ]; then
-            echo -e "\n${GREEN}所有容器启动成功且健康！${NC}"
+            echo -e "\n${GREEN}✅ 所有容器启动成功且健康！${NC}"
             return 0
         else
-            echo -e "\n${RED}以下容器未能正常启动或不健康:${NC}"
+            echo -e "\n${RED}❌ 以下容器未能正常启动或不健康:${NC}"
             printf '%s\n' "${unhealthy_containers[@]}"
             
             retry_count=$((retry_count + 1))
             if [ $retry_count -lt $max_retries ]; then
-                echo -e "${YELLOW}等待 ${wait_time} 秒后重试...${NC}"
+                echo -e "${YELLOW}⏳ 等待 ${wait_time} 秒后重试...${NC}"
                 sleep $wait_time
                 wait_time=$((wait_time * 2))
             else
@@ -361,6 +356,39 @@ docker_compose_up_with_retry() {
             fi
         fi
     done
+}
+
+# 主函数：处理Docker环境
+setup_docker_environment() {
+    echo -e "${GREEN}🔍 检查Docker环境...${NC}"
+    
+    if check_docker_installation; then
+        echo -e "${GREEN}✅ Docker环境已存在，进行版本检查...${NC}"
+        
+        local docker_type=$(check_docker_version_type)
+        echo -e "${GREEN}📦 检测到${docker_type}版本的Docker${NC}"
+        
+        # 根据版本类型启动服务
+        if [ "$docker_type" = "snap" ]; then
+            start_snap_docker
+        else
+            start_apt_docker
+        fi
+    else
+        echo -e "${YELLOW}📥 Docker环境未安装，开始安装...${NC}"
+        install_apt_docker
+    fi
+
+    # 统一配置镜像源
+    configure_docker_mirror || return 1
+    
+    if ! docker info >/dev/null 2>&1; then
+        echo -e "${RED}❌ Docker服务未正常运行${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}✨ Docker环境配置完成！${NC}"
+    return 0
 }
 
 # 导出主函数

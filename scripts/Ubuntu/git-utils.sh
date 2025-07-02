@@ -13,7 +13,7 @@ clone_with_retry() {
     local repo_name=$(basename "$target_dir")
     local max_attempts=3
     local attempt=1
-    local wait_time=5
+    local wait_time=5  # 固定等待5秒
 
     while true; do
         echo -e "${GREEN}尝试克隆 ${repo_name}（第 ${attempt} 次尝试）...${NC}"
@@ -44,14 +44,8 @@ clone_with_retry() {
             exit 1  # 克隆失败直接退出
         fi
         
-        echo "等待 ${wait_time} 秒后重试..."
+        echo -e "${YELLOW}⏳ 等待 ${wait_time} 秒后重试...${NC}"
         sleep $wait_time
-        
-        # 增加等待时间，但不超过30秒
-        wait_time=$((wait_time + 5))
-        if [ $wait_time -gt 30 ]; then
-            wait_time=30
-        fi
         
         attempt=$((attempt + 1))
     done

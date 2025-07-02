@@ -30,7 +30,7 @@ SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 # 配置文件目录
 CONFIG_DIR="$(realpath "$SCRIPT_DIR/../../configs")"
 
-# 引入工具脚本
+# 引入各工具脚本
 echo -e "\n${BOLD}🚀 开始小西数据员Web项目部署...${NC}\n"
 echo -e "${GREEN}📚 加载工具脚本...${NC}"
 # docker工具函数
