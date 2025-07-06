@@ -238,7 +238,7 @@ check_container_conflicts() {
     fi
 }
 
-# Docker Compose构建函数
+# Docker Compose 本地构建函数
 docker_compose_build_with_retry() {
     local max_retries=3
     local retry_count=0
@@ -387,71 +387,6 @@ docker_registry_login_with_retry() {
     done
 }
 
-# 替换docker-compose.yml中的镜像配置
-update_docker_compose_images() {
-    local compose_file="$1"
-    local registry_url="$2"
-    local registry_namespace="$3"
-    local max_retries=3
-    local retry_count=0
-    
-    echo -e "${GREEN}📝 更新docker-compose.yml中的镜像配置...${NC}"
-    
-    # 创建备份
-    local backup_file="${compose_file}.bak"
-    cp "$compose_file" "$backup_file"
-    
-    while [ $retry_count -lt $max_retries ]; do
-        echo -e "${GREEN}🔄 尝试更新配置 (尝试 $((retry_count + 1))/$max_retries)${NC}"
-        
-        # 创建临时文件
-        local temp_file=$(mktemp)
-        cp "$compose_file" "$temp_file"
-        
-        # 定义镜像标签
-        local backend_image="${registry_url}/${registry_namespace}/msdps_backend:v1"
-        local frontend_image="${registry_url}/${registry_namespace}/msdps_frontend:v1"
-        local scheduler_image="${registry_url}/${registry_namespace}/msdps_scheduler:v1"
-        local celery_worker_image="${registry_url}/${registry_namespace}/msdps_celery_worker:v1"
-        local mysql_image="${registry_url}/${registry_namespace}/msdps_mysql:8.0"
-        local redis_image="${registry_url}/${registry_namespace}/msdps_redis:6.2"
-        
-        # 替换镜像配置
-        sed -i "/backend:/,/dockerfile:/c\  backend:\n    image: $backend_image" "$temp_file"
-        sed -i "/scheduler:/,/dockerfile:/c\  scheduler:\n    image: $scheduler_image" "$temp_file"
-        sed -i "/celery_worker:/,/dockerfile:/c\  celery_worker:\n    image: $celery_worker_image" "$temp_file"
-        sed -i "/frontend:/,/dockerfile:/c\  frontend:\n    image: $frontend_image" "$temp_file"
-        sed -i "s|image: mysql:8.0|image: $mysql_image|" "$temp_file"
-        sed -i "s|image: redis:6.2|image: $redis_image|" "$temp_file"
-        
-        # 检查替换是否成功
-        if grep -q "build:" "$temp_file"; then
-            echo -e "${YELLOW}⚠️ 配置更新失败，正在清理...${NC}"
-            rm "$temp_file"
-            
-            retry_count=$((retry_count + 1))
-            if [ $retry_count -lt $max_retries ]; then
-                echo -e "${YELLOW}⚠️ 等待 5 秒后重试...${NC}"
-                sleep 5
-            else
-                echo -e "${RED}❌ 达到最大重试次数，还原备份...${NC}"
-                mv "$backup_file" "$compose_file"
-                echo -e "${GREEN}✅ 已还原到原始配置${NC}"
-                return 1
-            fi
-            continue
-        fi
-        
-        # 替换成功，移动临时文件
-        mv "$temp_file" "$compose_file"
-        echo -e "${GREEN}✅ 镜像配置更新成功！${NC}"
-        
-        # 清理备份文件
-        rm "$backup_file"
-        return 0
-    done
-}
-
 # 拉取阿里云镜像
 docker_compose_pull_with_retry() {
     local max_retries=3
@@ -476,38 +411,6 @@ docker_compose_pull_with_retry() {
             fi
         fi
     done
-}
-
-# 重命名从镜像仓库拉取的镜像为本地镜像名称
-rename_registry_images() {
-    local registry_url="$1"
-    local registry_namespace="$2"
-    
-    echo -e "${GREEN}🏷️ 重命名镜像...${NC}"
-    
-    # 定义镜像映射关系（远程镜像:本地镜像）
-    local image_pairs=(
-        "${registry_url}/${registry_namespace}/msdps_backend:v1:msdps_backend"
-        "${registry_url}/${registry_namespace}/msdps_frontend:v1:msdps_frontend"
-        "${registry_url}/${registry_namespace}/msdps_scheduler:v1:msdps_scheduler"
-        "${registry_url}/${registry_namespace}/msdps_celery_worker:v1:msdps_celery_worker"
-        "${registry_url}/${registry_namespace}/msdps_mysql:8.0:msdps_mysql"
-        "${registry_url}/${registry_namespace}/msdps_redis:6.2:msdps_redis"
-    )
-    
-    for pair in "${image_pairs[@]}"; do
-        local remote_image="${pair%%:*}"
-        local local_image="${pair##*:}"
-        
-        echo -e "${GREEN}📝 重命名 $remote_image 为 $local_image ${NC}"
-        if ! docker tag "$remote_image" "$local_image"; then
-            echo -e "${RED}❌ 重命名镜像失败: $remote_image${NC}"
-            return 1
-        fi
-    done
-    
-    echo -e "${GREEN}✅ 镜像重命名完成${NC}"
-    return 0
 }
 
 # 主函数：处理Docker环境
@@ -549,6 +452,4 @@ export -f check_port_conflicts
 export -f docker_compose_build_with_retry
 export -f docker_compose_up_with_retry
 export -f docker_registry_login_with_retry
-export -f update_docker_compose_images
 export -f docker_compose_pull_with_retry
-export -f rename_registry_images

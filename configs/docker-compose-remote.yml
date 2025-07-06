@@ -1,0 +1,124 @@
+services:
+  mysql:
+    image: registry.cn-chengdu.aliyuncs.com/allenbobo/mysql:8.0
+    container_name: msdps_mysql
+    restart: always
+    user: "999:999"
+    env_file:
+      - ./configs/env/mysql.env   # 从这里获取 MYSQL_* 变量
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  redis:
+    image: registry.cn-chengdu.aliyuncs.com/allenbobo/redis:6.2
+    container_name: msdps_redis
+    restart: always
+    user: "999:999"
+    command: redis-server /usr/local/etc/redis/redis.conf
+    env_file:
+      - ./configs/env/redis.env   # 从这里获取 REDIS_PASSWORD
+    volumes:
+      - ./redis/data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - app-network
+
+  backend:
+    image: registry.cn-chengdu.aliyuncs.com/allenbobo/msdps_backend:v1
+    container_name: msdps_backend
+    restart: always
+    env_file:
+      - docker-compose.env    # 添加端口映射配置
+      - ./configs/env/.env
+      - ./configs/env/.env.production
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+      - ./backend/static:/app/static 
+      # 将环境变量文件挂载到容器中
+      - ./configs/env/.env:/app/.env
+      - ./configs/env/.env.production:/app/.env.production
+    ports:
+      - "${BACKEND_PORT:-18000}:8000"  # 根据环境变量设置端口映射，默认值为18000
+    depends_on:
+      - mysql
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - app-network
+
+  # 添加定时任务服务
+  scheduler:
+    image: registry.cn-chengdu.aliyuncs.com/allenbobo/msdps_scheduler:v1
+    container_name: msdps_scheduler
+    restart: always
+    command: ["/app/entrypoint.sh", "scheduler"]
+    env_file:
+      - ./configs/env/.env
+      - ./configs/env/.env.production
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+      - ./configs/env/.env:/app/.env
+      - ./configs/env/.env.production:/app/.env.production
+    depends_on:
+      backend:
+        condition: service_healthy
+      mysql:
+        condition: service_started
+    networks:
+      - app-network
+
+  # 添加Celery worker服务
+  celery_worker:
+    image: registry.cn-chengdu.aliyuncs.com/allenbobo/msdps_celery_worker:v1
+    container_name: msdps_celery_worker
+    restart: always
+    command: ["/app/entrypoint.sh", "celery"]
+    env_file:
+      - ./configs/env/.env
+      - ./configs/env/.env.production
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+      - ./configs/env/.env:/app/.env
+      - ./configs/env/.env.production:/app/.env.production
+    depends_on:
+      backend:
+        condition: service_healthy
+      mysql:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - app-network
+
+  frontend:                                                               # 服务名称
+    image: registry.cn-chengdu.aliyuncs.com/allenbobo/msdps_frontend:v1   # 镜像
+    container_name: msdps_frontend                                        # 容器名称
+    restart: always                                                       # 自动重启
+    env_file:
+      - docker-compose.env              # 添加端口映射配置
+    ports:                              # 端口映射
+      - "${FRONTEND_PORT:-18080}:80"    # 根据环境变量设置端口映射，默认值为18080
+    depends_on:                         # 依赖关系   
+      - backend                         # 确保backend服务先启动
+    networks:                           # 网络配置
+      - app-network                     # 使用app-network网络，将容器加入到app-network网络，使其能与其他服务（如后端）通信
+
+networks:
+  app-network:
+    driver: bridge

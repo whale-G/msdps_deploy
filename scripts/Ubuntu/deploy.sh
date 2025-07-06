@@ -178,13 +178,6 @@ echo -e "  ⚡ 前端服务端口: $FRONTEND_PORT"
 print_step 5 7 "创建配置文件"
 cd $SCRIPT_DIR || exit 1
 
-# 创建web项目docker-compose相关文件
-echo -e "${GREEN}📝 创建docker-compose配置...${NC}"
-if ! cp $CONFIG_DIR/docker-compose.yml "$PROJECT_DIR/docker-compose.yml"; then
-    echo -e "${RED}❌ 创建docker-compose.yml文件失败${NC}"
-    exit 1
-fi
-
 # 创建并设置MySQL数据目录权限
 echo -e "${GREEN}📁 配置MySQL容器...${NC}"
 if ! mkdir -p "$PROJECT_DIR/mysql/data"; then
@@ -337,7 +330,7 @@ print_step 7 7 "构建并启动容器"
 
 # 选择镜像获取方式
 echo -e "${CYAN}📝 请选择镜像获取方式:${NC}"
-echo -e "  1) 从阿里云镜像仓库拉取"
+echo -e "  1) 从阿里云镜像仓库拉取（推荐）"
 echo -e "  2) 本地构建"
 while true; do
     read -p "💡 请输入选项 (1/2): " image_source_choice
@@ -347,8 +340,8 @@ while true; do
             
             # 获取阿里云镜像仓库信息
             echo -e "${GREEN}🔑 请输入阿里云镜像仓库登录信息:${NC}"
-            read -p "💡 阿里云镜像仓库地址 (默认: registry.cn-hangzhou.aliyuncs.com): " registry_url
-            registry_url=${registry_url:-registry.cn-hangzhou.aliyuncs.com}
+            read -p "💡 阿里云镜像仓库地址 (默认: registry.cn-chengdu.aliyuncs.com): " registry_url
+            registry_url=${registry_url:-registry.cn-chengdu.aliyuncs.com}
             read -p "💡 阿里云镜像仓库命名空间: " registry_namespace
             read -p "💡 阿里云镜像仓库用户名: " registry_username
             read -s -p "💡 阿里云镜像仓库密码: " registry_password
@@ -360,9 +353,10 @@ while true; do
                 continue
             fi
             
-            # 更新docker-compose.yml中的镜像配置
-            if ! update_docker_compose_images "$PROJECT_DIR/docker-compose.yml" "$registry_url" "$registry_namespace"; then
-                echo -e "${RED}❌ 更新镜像配置失败，请检查配置文件后重试${NC}"
+            # 复制远程镜像配置文件
+            echo -e "${GREEN}📝 使用远程镜像配置...${NC}"
+            if ! cp "$CONFIG_DIR/docker-compose-remote.yml" "$PROJECT_DIR/docker-compose.yml"; then
+                echo -e "${RED}❌ 复制docker-compose配置文件失败${NC}"
                 continue
             fi
             
@@ -373,29 +367,41 @@ while true; do
                 echo -e "${RED}❌ 拉取镜像失败，请检查网络连接和镜像是否存在${NC}"
                 continue
             fi
-            
-            # 重命名镜像
-            if ! rename_registry_images "$registry_url" "$registry_namespace"; then
-                echo -e "${RED}❌ 重命名镜像失败${NC}"
-                continue
+
+            # 使用拉取的后端镜像生成 SECRET_KEY
+            echo -e "${GREEN}🔑 生成Django SECRET_KEY...${NC}"
+            if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "$registry_url/$registry_namespace/msdps_backend" "$PROJECT_DIR"; then
+                echo -e "${RED}❌ SECRET_KEY生成失败，部署终止${NC}"
+                exit 1
             fi
-            
-            # 恢复docker-compose.yml为使用本地镜像名称
-            echo -e "${GREEN}📝 更新docker-compose.yml使用本地镜像名称...${NC}"
-            if ! cp "$CONFIG_DIR/docker-compose.yml" "$PROJECT_DIR/docker-compose.yml"; then
-                echo -e "${RED}❌ 恢复docker-compose.yml失败${NC}"
-                continue
-            fi
+
             break
             ;;
         2)
             echo -e "${GREEN}🏗️ 选择本地构建镜像...${NC}"
+            
+            # 复制本地构建配置文件
+            echo -e "${GREEN}📝 使用本地构建配置...${NC}"
+            if ! cp "$CONFIG_DIR/docker-compose-local.yml" "$PROJECT_DIR/docker-compose.yml"; then
+                echo -e "${RED}❌ 复制docker-compose配置文件失败${NC}"
+                continue
+            fi
+            
             # 构建所有镜像
             echo -e "${GREEN}🏗️ 构建所有服务镜像...${NC}"
+            cd $PROJECT_DIR
             if ! docker_compose_build_with_retry; then
                 echo -e "${RED}❌ 镜像构建失败${NC}"
+                continue
+            fi
+
+            # 使用构建好的后端镜像生成 SECRET_KEY
+            echo -e "${GREEN}🔑 生成Django SECRET_KEY...${NC}"
+            if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "msdps_web-backend" "$PROJECT_DIR"; then
+                echo -e "${RED}❌ SECRET_KEY生成失败，部署终止${NC}"
                 exit 1
             fi
+
             break
             ;;
         *)
@@ -403,13 +409,6 @@ while true; do
             ;;
     esac
 done
-
-# 使用构建好的后端镜像生成 SECRET_KEY
-echo -e "${GREEN}🔑 生成Django SECRET_KEY...${NC}"
-if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "msdps_web-backend" "$PROJECT_DIR"; then
-    echo -e "${RED}❌ SECRET_KEY生成失败，部署终止${NC}"
-    exit 1
-fi
 
 # 启动所有容器
 echo -e "${GREEN}🚀 启动所有容器...${NC}"
