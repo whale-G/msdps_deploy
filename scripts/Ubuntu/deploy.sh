@@ -264,20 +264,20 @@ fi
 
 # 步骤6: 配置web项目环境变量
 print_step 6 7 "配置环境变量"
-if [ ! -f "$PROJECT_DIR/configs/env/.env" ] || [ ! -f "$PROJECT_DIR/configs/env/.env.production" ] || [ ! -f "$PROJECT_DIR/configs/env/mysql.env" ] || [ ! -f "$PROJECT_DIR/configs/env/redis.env" ]; then
-    echo -e "${CYAN}📝 请设置部署所需的环境变量:${NC}"
-    read -p "💡 MySQL root密码: " MYSQL_ROOT_PASSWORD
-    read -p "💡 MySQL数据库名: " MYSQL_DATABASE
-    read -p "💡 MySQL用户名: " MYSQL_USER
-    read -p "💡 MySQL密码: " MYSQL_PASSWORD
-    read -p "💡 Redis密码: " REDIS_PASSWORD
-    read -p "💡 Django管理员用户名: " DJANGO_SUPERUSER_USERNAME
-    read -p "💡 Django管理员初始密码: " DJANGO_SUPERUSER_PASSWORD
-    echo
 
-    # 创建MySQL环境变量文件
-    echo -e "${GREEN}📝 创建MySQL环境配置...${NC}"
-    cat > "$PROJECT_DIR/configs/env/mysql.env" << EOF
+echo -e "${CYAN}📝 请设置部署所需的环境变量:${NC}"
+read -p "💡 MySQL root密码: " MYSQL_ROOT_PASSWORD
+read -p "💡 MySQL数据库名: " MYSQL_DATABASE
+read -p "💡 MySQL用户名: " MYSQL_USER
+read -p "💡 MySQL密码: " MYSQL_PASSWORD
+read -p "💡 Redis密码: " REDIS_PASSWORD
+read -p "💡 Django管理员用户名: " DJANGO_SUPERUSER_USERNAME
+read -p "💡 Django管理员初始密码: " DJANGO_SUPERUSER_PASSWORD
+echo
+
+# 创建MySQL环境变量文件
+echo -e "${GREEN}📝 创建MySQL环境配置...${NC}"
+cat > "$PROJECT_DIR/configs/env/mysql.env" << EOF
 # MySQL配置
 MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 MYSQL_DATABASE=$MYSQL_DATABASE
@@ -285,22 +285,22 @@ MYSQL_USER=$MYSQL_USER
 MYSQL_PASSWORD=$MYSQL_PASSWORD
 EOF
 
-    # 创建Redis环境变量文件
-    echo -e "${GREEN}📝 创建Redis环境配置...${NC}"
-    cat > "$PROJECT_DIR/configs/env/redis.env" << EOF
+# 创建Redis环境变量文件
+echo -e "${GREEN}📝 创建Redis环境配置...${NC}"
+cat > "$PROJECT_DIR/configs/env/redis.env" << EOF
 # Redis配置
 REDIS_PASSWORD=$REDIS_PASSWORD
 EOF
 
-    # 更新Redis配置文件中的密码
-    if ! sed -i "s/requirepass .*/requirepass $REDIS_PASSWORD/" "$PROJECT_DIR/redis/redis.conf"; then
-        echo -e "${RED}❌ 更新Redis配置文件失败${NC}"
-        exit 1
-    fi
+# 更新Redis配置文件中的密码
+if ! sed -i "s/requirepass .*/requirepass $REDIS_PASSWORD/" "$PROJECT_DIR/redis/redis.conf"; then
+    echo -e "${RED}❌ 更新Redis配置文件失败${NC}"
+    exit 1
+fi
 
-    # 创建Django生产环境配置文件
-    echo -e "${GREEN}📝 创建Django环境配置...${NC}"
-    cat > "$PROJECT_DIR/configs/env/.env.production" << EOF
+# 创建Django生产环境配置文件
+echo -e "${GREEN}📝 创建Django环境配置...${NC}"
+cat > "$PROJECT_DIR/configs/env/.env.production" << EOF
 # 基础配置
 DJANGO_ENV=production
 DEBUG=False
@@ -331,20 +331,78 @@ REDIS_DB=0
 ADMIN_ACCOUNT=$DJANGO_SUPERUSER_USERNAME
 ADMIN_INITIAL_PASSWORD=$DJANGO_SUPERUSER_PASSWORD
 EOF
-else
-    echo -e "${YELLOW}ℹ️ 各环境变量文件已存在，使用现有配置${NC}"
-fi
 
 # 步骤7: 构建并启动容器
 print_step 7 7 "构建并启动容器"
 
-# 构建所有镜像
-echo -e "${GREEN}🏗️ 构建所有服务镜像...${NC}"
-cd $PROJECT_DIR
-if ! docker_compose_build_with_retry; then
-    echo -e "${RED}❌ 镜像构建失败${NC}"
-    exit 1
-fi
+# 选择镜像获取方式
+echo -e "${CYAN}📝 请选择镜像获取方式:${NC}"
+echo -e "  1) 从阿里云镜像仓库拉取"
+echo -e "  2) 本地构建"
+while true; do
+    read -p "💡 请输入选项 (1/2): " image_source_choice
+    case $image_source_choice in
+        1)
+            echo -e "${GREEN}🚀 选择从阿里云镜像仓库拉取镜像...${NC}"
+            
+            # 获取阿里云镜像仓库信息
+            echo -e "${GREEN}🔑 请输入阿里云镜像仓库登录信息:${NC}"
+            read -p "💡 阿里云镜像仓库地址 (默认: registry.cn-hangzhou.aliyuncs.com): " registry_url
+            registry_url=${registry_url:-registry.cn-hangzhou.aliyuncs.com}
+            read -p "💡 阿里云镜像仓库命名空间: " registry_namespace
+            read -p "💡 阿里云镜像仓库用户名: " registry_username
+            read -s -p "💡 阿里云镜像仓库密码: " registry_password
+            echo
+            
+            # 登录阿里云镜像仓库
+            if ! docker_registry_login_with_retry "$registry_url" "$registry_username" "$registry_password"; then
+                echo -e "${RED}❌ 无法登录阿里云镜像仓库，请检查凭据后重试${NC}"
+                continue
+            fi
+            
+            # 更新docker-compose.yml中的镜像配置
+            if ! update_docker_compose_images "$PROJECT_DIR/docker-compose.yml" "$registry_url" "$registry_namespace"; then
+                echo -e "${RED}❌ 更新镜像配置失败，请检查配置文件后重试${NC}"
+                continue
+            fi
+            
+            # 拉取镜像
+            echo -e "${GREEN}📥 从阿里云镜像仓库拉取镜像...${NC}"
+            cd $PROJECT_DIR
+            if ! docker_compose_pull_with_retry; then
+                echo -e "${RED}❌ 拉取镜像失败，请检查网络连接和镜像是否存在${NC}"
+                continue
+            fi
+            
+            # 重命名镜像
+            if ! rename_registry_images "$registry_url" "$registry_namespace"; then
+                echo -e "${RED}❌ 重命名镜像失败${NC}"
+                continue
+            fi
+            
+            # 恢复docker-compose.yml为使用本地镜像名称
+            echo -e "${GREEN}📝 更新docker-compose.yml使用本地镜像名称...${NC}"
+            if ! cp "$CONFIG_DIR/docker-compose.yml" "$PROJECT_DIR/docker-compose.yml"; then
+                echo -e "${RED}❌ 恢复docker-compose.yml失败${NC}"
+                continue
+            fi
+            break
+            ;;
+        2)
+            echo -e "${GREEN}🏗️ 选择本地构建镜像...${NC}"
+            # 构建所有镜像
+            echo -e "${GREEN}🏗️ 构建所有服务镜像...${NC}"
+            if ! docker_compose_build_with_retry; then
+                echo -e "${RED}❌ 镜像构建失败${NC}"
+                exit 1
+            fi
+            break
+            ;;
+        *)
+            echo -e "${RED}❌ 无效的选项，请重新输入${NC}"
+            ;;
+    esac
+done
 
 # 使用构建好的后端镜像生成 SECRET_KEY
 echo -e "${GREEN}🔑 生成Django SECRET_KEY...${NC}"

@@ -42,17 +42,17 @@ print_step 1 3 "配置Ubuntu软件源"
 echo -e "${GREEN}📦 备份原始源列表...${NC}"
 cp /etc/apt/sources.list /etc/apt/sources.list.bak
 
-echo -e "${GREEN}📦 配置清华大学源...${NC}"
+echo -e "${GREEN}📦 配置阿里云源...${NC}"
 cat > /etc/apt/sources.list << EOF
-# 默认注释了源码镜像以提高 apt update 速度，如有需要可自行取消注释
-deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $(lsb_release -cs) main restricted universe multiverse
-# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $(lsb_release -cs) main restricted universe multiverse
-deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $(lsb_release -cs)-updates main restricted universe multiverse
-# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $(lsb_release -cs)-updates main restricted universe multiverse
-deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $(lsb_release -cs)-backports main restricted universe multiverse
-# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $(lsb_release -cs)-backports main restricted universe multiverse
-deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $(lsb_release -cs)-security main restricted universe multiverse
-# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ $(lsb_release -cs)-security main restricted universe multiverse
+# 阿里云镜像源
+deb https://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main restricted universe multiverse
+# deb-src https://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main restricted universe multiverse
+deb https://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main restricted universe multiverse
+# deb-src https://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main restricted universe multiverse
+deb https://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main restricted universe multiverse
+# deb-src https://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main restricted universe multiverse
+deb https://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main restricted universe multiverse
+# deb-src https://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main restricted universe multiverse
 EOF
 
 echo -e "${GREEN}📦 更新软件包索引...${NC}"
@@ -98,7 +98,7 @@ fi
 print_separator
 echo -e "${GREEN}✅ 所有配置完成！${NC}"
 echo -e "${CYAN}📝 配置总结：${NC}"
-echo -e "  ✓ Ubuntu软件源已更新为清华源"
+echo -e "  ✓ Ubuntu软件源已更新为阿里云源"
 echo -e "  ✓ GitHub访问已配置加速"
 print_separator
 echo -e "\n${BOLD}🚀 请继续执行部署脚本（deploy.sh）...${NC}\n"
