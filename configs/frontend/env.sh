@@ -7,7 +7,7 @@ API_URL="http://$SERVER_IP:$BACKEND_PORT"
 
 echo "Configuring API URL: $API_URL"
 
-# 替换所有JS文件中的占位符
-find /usr/share/nginx/html -type f -name "*.js" -exec sed -i "s|VITE_API_BASE_URL_PLACEHOLDER|$API_URL|g" {} +
+# 替换运行时配置
+find /usr/share/nginx/html -type f -name "index.html" -exec sed -i "s|VITE_API_BASE_URL: ''|VITE_API_BASE_URL: '$API_URL'|g" {} +
 
 echo "API URL configuration complete!"

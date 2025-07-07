@@ -214,21 +214,11 @@ fi
 # 创建前端相关文件
 echo -e "${GREEN}📁 配置前端容器...${NC}"
 if ! cp $CONFIG_DIR/frontend/Dockerfile "$PROJECT_DIR/frontend/Dockerfile" || \
-   ! cp $CONFIG_DIR/frontend/nginx.conf "$PROJECT_DIR/frontend/nginx.conf"; then
+   ! cp $CONFIG_DIR/frontend/nginx.conf "$PROJECT_DIR/frontend/nginx.conf" || \
+   ! cp $CONFIG_DIR/frontend/env.sh "$PROJECT_DIR/frontend/env.sh"; then
     echo -e "${RED}❌ 创建前端容器配置文件失败${NC}"
     exit 1
 fi
-
-# 创建前端环境变量配置
-echo -e "${GREEN}📝 创建前端环境配置...${NC}"
-cat > "$PROJECT_DIR/frontend/.env.production" << EOF
-# API基础URL配置
-VITE_API_BASE_URL=VITE_API_BASE_URL_PLACEHOLDER
-
-# 其他生产环境配置
-VITE_APP_TITLE=小西数据员
-VITE_APP_ENV=production
-EOF
 
 # 创建后端相关文件和目录
 echo -e "${GREEN}📁 配置后端容器...${NC}"

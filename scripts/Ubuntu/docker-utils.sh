@@ -123,12 +123,12 @@ install_apt_docker() {
         gnupg \
         lsb-release
         
-    echo -e "${GREEN}🔑 添加Docker GPG密钥...${NC}"
-    curl -fsSL https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    echo -e "${GREEN}🔑 添加阿里云Docker GPG密钥...${NC}"
+    curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
     
-    echo -e "${GREEN}📝 配置Docker仓库...${NC}"
+    echo -e "${GREEN}📝 配置阿里云Docker仓库...${NC}"
     echo \
-        "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://mirrors.aliyun.com/docker-ce/linux/ubuntu \
         $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
         
     echo -e "${GREEN}⚙️ 安装Docker Engine...${NC}"
