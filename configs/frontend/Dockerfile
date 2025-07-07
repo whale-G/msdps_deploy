@@ -40,6 +40,10 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # 复制 Nginx 配置
 COPY nginx.conf /etc/nginx/conf.d/default.conf        
 
+# 添加环境变量替换脚本到docker-entrypoint.d目录
+COPY env.sh /docker-entrypoint.d/40-env-config.sh
+RUN chmod +x /docker-entrypoint.d/40-env-config.sh
+
 # 暴露端口 80
 EXPOSE 80                 
 # ↑ 这是文档性的，实际端口映射在docker-compose.yml中定义

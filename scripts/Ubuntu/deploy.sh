@@ -161,10 +161,11 @@ done
 echo -e "${GREEN}🔍 检查端口冲突...${NC}"
 check_port_conflicts "$FRONTEND_PORT" "$BACKEND_PORT"
 
-# 将端口信息写入docker-compose.env文件
+# 将 服务器IP 与 前后端容器端口 信息写入docker-compose.env文件
 echo -e "${GREEN}📝 保存端口配置...${NC}"
 if ! echo "BACKEND_PORT=$BACKEND_PORT" > "$PROJECT_DIR/docker-compose.env" || \
-   ! echo "FRONTEND_PORT=$FRONTEND_PORT" >> "$PROJECT_DIR/docker-compose.env"; then
+   ! echo "FRONTEND_PORT=$FRONTEND_PORT" >> "$PROJECT_DIR/docker-compose.env" || \
+   ! echo "SERVER_IP=$SERVER_IP" >> "$PROJECT_DIR/docker-compose.env"; then
     echo -e "${RED}❌ 创建docker-compose.env文件失败${NC}"
     exit 1
 fi
@@ -222,7 +223,7 @@ fi
 echo -e "${GREEN}📝 创建前端环境配置...${NC}"
 cat > "$PROJECT_DIR/frontend/.env.production" << EOF
 # API基础URL配置
-VITE_API_BASE_URL=http://${SERVER_IP}:${BACKEND_PORT}
+VITE_API_BASE_URL=VITE_API_BASE_URL_PLACEHOLDER
 
 # 其他生产环境配置
 VITE_APP_TITLE=小西数据员
