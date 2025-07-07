@@ -110,10 +110,8 @@ services:
     image: registry.cn-chengdu.aliyuncs.com/allenbobo/msdps_frontend:v1   # 镜像
     container_name: msdps_frontend                                        # 容器名称
     restart: always                                                       # 自动重启
-    environment:
-      - VITE_API_BASE_URL=http://${SERVER_IP}:${BACKEND_PORT}             # 设置前端API基础URL
     env_file:
-      - docker-compose.env              # 添加端口映射配置
+      - docker-compose.env              # 从这里获取SERVER_IP和BACKEND_PORT
     ports:                              # 端口映射
       - "${FRONTEND_PORT:-18080}:80"    # 根据环境变量设置端口映射，默认值为18080
     depends_on:                         # 依赖关系   

@@ -371,7 +371,7 @@ while true; do
 
             # 使用拉取的后端镜像生成 SECRET_KEY
             echo -e "${GREEN}🔑 生成Django SECRET_KEY...${NC}"
-            if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "$registry_url/$registry_namespace/msdps_backend" "$PROJECT_DIR"; then
+            if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "$registry_url/$registry_namespace/msdps_backend:v1" "$PROJECT_DIR"; then
                 echo -e "${RED}❌ SECRET_KEY生成失败，部署终止${NC}"
                 exit 1
             fi
