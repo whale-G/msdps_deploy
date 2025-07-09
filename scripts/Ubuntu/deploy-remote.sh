@@ -292,21 +292,6 @@ EOF
 # 步骤6: 构建镜像并启动容器
 print_step 6 6 "构建镜像并启动容器"
 
-# 获取阿里云镜像仓库信息
-echo -e "${GREEN}🔑 请输入阿里云镜像仓库登录信息:${NC}"
-read -p "💡 阿里云镜像仓库地址 (默认: registry.cn-chengdu.aliyuncs.com): " registry_url
-registry_url=${registry_url:-registry.cn-chengdu.aliyuncs.com}
-read -p "💡 阿里云镜像仓库命名空间: " registry_namespace
-read -p "💡 阿里云镜像仓库用户名: " registry_username
-read -s -p "💡 阿里云镜像仓库密码: " registry_password
-echo
-
-# 登录阿里云镜像仓库
-if ! docker_registry_login_with_retry "$registry_url" "$registry_username" "$registry_password"; then
-    echo -e "${RED}❌ 无法登录阿里云镜像仓库，请检查凭据后重试${NC}"
-    exit 1
-fi
-
 # 复制远程镜像配置文件
 echo -e "${GREEN}📝 使用远程镜像配置...${NC}"
 if ! cp "$CONFIG_DIR/docker-compose-remote.yml" "$PROJECT_DIR/docker-compose.yml"; then

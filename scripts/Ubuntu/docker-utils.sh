@@ -387,35 +387,6 @@ docker_compose_up_with_retry() {
     done
 }
 
-# 登录阿里云镜像仓库
-docker_registry_login_with_retry() {
-    local registry_url="$1"
-    local registry_username="$2"
-    local registry_password="$3"
-    local max_retries=3
-    local retry_count=0
-    local wait_time=5
-
-    while [ $retry_count -lt $max_retries ]; do
-        echo -e "${GREEN}🔑 尝试登录阿里云镜像仓库 (尝试 $((retry_count + 1))/$max_retries)${NC}"
-        
-        if echo "$registry_password" | docker login --username "$registry_username" --password-stdin "$registry_url"; then
-            echo -e "${GREEN}✅ 登录成功！${NC}"
-            return 0
-        else
-            retry_count=$((retry_count + 1))
-            
-            if [ $retry_count -lt $max_retries ]; then
-                echo -e "${YELLOW}⚠️ 登录失败，等待 ${wait_time} 秒后重试...${NC}"
-                sleep $wait_time
-            else
-                echo -e "${RED}❌ 达到最大重试次数，登录失败${NC}"
-                return 1
-            fi
-        fi
-    done
-}
-
 # 拉取阿里云镜像
 docker_compose_pull_with_retry() {
     local max_retries=3
@@ -480,5 +451,4 @@ export -f setup_docker_environment
 export -f check_port_conflicts
 export -f docker_compose_build_with_retry
 export -f docker_compose_up_with_retry
-export -f docker_registry_login_with_retry
 export -f docker_compose_pull_with_retry
