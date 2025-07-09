@@ -19,7 +19,7 @@ if [ "$1" = "web" ]; then
     python manage.py shell << EOF
 from django.contrib.auth import get_user_model
 User = get_user_model()
-if not User.objects.filter(username='$ADMIN_ACCOUNT').exists():
+if not User.objects.filter(user_name='$ADMIN_ACCOUNT').exists():
     User.objects.create_superuser('$ADMIN_ACCOUNT', '', '$ADMIN_INITIAL_PASSWORD')
 EOF
 else
@@ -46,4 +46,4 @@ case "$1" in
         echo "Unknown command: $1"
         exit 1
         ;;
-esac 
+esac

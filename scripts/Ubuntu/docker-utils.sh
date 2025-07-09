@@ -159,6 +159,12 @@ install_apt_docker() {
     fi
 
     echo -e "${GREEN}✨ Docker和Docker Compose安装完成${NC}"
+    
+    # 配置当前用户的Docker权限
+    if [ -n "$SUDO_USER" ]; then
+        configure_docker_user_permissions "$SUDO_USER"
+    fi
+    
     return 0
 }
 
@@ -180,6 +186,29 @@ EOF
     echo -e "${GREEN}重启Docker服务...${NC}"
     systemctl daemon-reload
     systemctl restart docker 
+}
+
+# 配置Docker用户组权限
+configure_docker_user_permissions() {
+    local user=$1
+    
+    echo -e "${GREEN}👤 配置Docker用户组权限...${NC}"
+    
+    # 确保docker组存在
+    if ! getent group docker > /dev/null; then
+        echo -e "${YELLOW}⚠️ Docker用户组不存在，正在创建...${NC}"
+        groupadd docker
+    fi
+    
+    # 将用户添加到docker组
+    if ! groups "$user" | grep -q "\bdocker\b"; then
+        echo -e "${GREEN}➕ 将用户 $user 添加到docker组...${NC}"
+        usermod -aG docker "$user"
+        echo -e "${GREEN}✅ 用户已添加到docker组${NC}"
+        echo -e "${YELLOW}⚠️ 请注意：需要重新登录才能使更改生效${NC}"
+    else
+        echo -e "${GREEN}✅ 用户 $user 已在docker组中${NC}"
+    fi
 }
 
 # 检查端口占用
