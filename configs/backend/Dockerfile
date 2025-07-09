@@ -8,13 +8,13 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # 配置Debian镜像源并安装netcat
 RUN rm -f /etc/apt/sources.list /etc/apt/sources.list.d/* && \
     echo 'Types: deb\n\
-URIs: https://mirrors.tuna.tsinghua.edu.cn/debian\n\
+URIs: https://mirrors.aliyun.com/debian\n\
 Suites: bookworm bookworm-updates bookworm-backports\n\
 Components: main contrib non-free non-free-firmware\n\
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg\n\
 \n\
 Types: deb\n\
-URIs: https://mirrors.tuna.tsinghua.edu.cn/debian-security\n\
+URIs: https://mirrors.aliyun.com/debian-security\n\
 Suites: bookworm-security\n\
 Components: main contrib non-free non-free-firmware\n\
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' > /etc/apt/sources.list.d/debian.sources && \
@@ -29,8 +29,9 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# 设置pip镜像源
-RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+# 设置pip镜像源为阿里云
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    pip config set install.trusted-host mirrors.aliyun.com && \
     pip install --no-cache-dir -r requirements.txt gunicorn gevent
 
 # 创建必要的目录

@@ -319,29 +319,27 @@ EOF
 # 步骤7: 构建并启动容器
 print_step 7 7 "构建并启动容器"
 
-while true; do
-    # 复制本地构建配置文件
-    echo -e "${GREEN}📝 使用本地构建配置...${NC}"
-    if ! cp "$CONFIG_DIR/docker-compose-local.yml" "$PROJECT_DIR/docker-compose.yml"; then
-        echo -e "${RED}❌ 复制docker-compose配置文件失败${NC}"
-        continue
-    fi
-    
-    # 构建所有镜像
-    echo -e "${GREEN}🏗️ 构建所有服务镜像...${NC}"
-    cd $PROJECT_DIR
-    if ! docker_compose_build_with_retry; then
-        echo -e "${RED}❌ 镜像构建失败${NC}"
-        continue
-    fi
+# 复制本地构建配置文件
+echo -e "${GREEN}📝 使用本地构建配置...${NC}"
+if ! cp "$CONFIG_DIR/docker-compose-local.yml" "$PROJECT_DIR/docker-compose.yml"; then
+    echo -e "${RED}❌ 复制docker-compose配置文件失败${NC}"
+    exit 1
+fi
 
-    # 使用构建好的后端镜像生成 SECRET_KEY
-    echo -e "${GREEN}🔑 生成Django SECRET_KEY...${NC}"
-    if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "msdps_web-backend" "$PROJECT_DIR"; then
-        echo -e "${RED}❌ SECRET_KEY生成失败，部署终止${NC}"
-        exit 1
-    fi
-done
+# 构建所有镜像
+echo -e "${GREEN}🏗️ 构建所有服务镜像...${NC}"
+cd $PROJECT_DIR
+if ! docker_compose_build_with_retry; then
+    echo -e "${RED}❌ 镜像构建失败${NC}"
+    exit 1
+fi
+
+# 使用构建好的后端镜像生成 SECRET_KEY
+echo -e "${GREEN}🔑 生成Django SECRET_KEY...${NC}"
+if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "msdps_web-backend" "$PROJECT_DIR"; then
+    echo -e "${RED}❌ SECRET_KEY生成失败，部署终止${NC}"
+    exit 1
+fi
 
 # 启动所有容器
 echo -e "${GREEN}🚀 启动所有容器...${NC}"

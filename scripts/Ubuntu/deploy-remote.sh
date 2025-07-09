@@ -223,13 +223,14 @@ fi
 # 步骤5: 配置web项目环境变量
 print_step 5 6 "配置环境变量"
 
-echo -e "${CYAN}📝 请设置部署所需的环境变量:${NC}"
-read -p "💡 MySQL root密码: " MYSQL_ROOT_PASSWORD
-read -p "💡 MySQL数据库名: " MYSQL_DATABASE
-read -p "💡 MySQL用户名: " MYSQL_USER
-read -p "💡 MySQL密码: " MYSQL_PASSWORD
-read -p "💡 Redis密码: " REDIS_PASSWORD
-echo
+# 预设项目环境变量
+MYSQL_ROOT_PASSWORD=123Abc456
+MYSQL_DATABASE=msdps_db
+MYSQL_USER=msdps_db_user
+MYSQL_PASSWORD=123Abc456
+REDIS_PASSWORD=123Abc456
+DJANGO_ADMIN_ACCOUNT=admin
+DJANGO_ADMIN_PASSWORD=123Abc456
 
 # 创建MySQL环境变量文件
 echo -e "${GREEN}📝 创建MySQL环境配置...${NC}"
@@ -284,51 +285,49 @@ REDIS_PASSWORD=$REDIS_PASSWORD
 REDIS_DB=0
 
 # Django管理员配置
-ADMIN_ACCOUNT=admin
-ADMIN_INITIAL_PASSWORD=123Abc456
+ADMIN_ACCOUNT=$DJANGO_ADMIN_ACCOUNT
+ADMIN_INITIAL_PASSWORD=$DJANGO_ADMIN_PASSWORD
 EOF
 
 # 步骤6: 构建镜像并启动容器
 print_step 6 6 "构建镜像并启动容器"
 
-while true; do
-    # 获取阿里云镜像仓库信息
-    echo -e "${GREEN}🔑 请输入阿里云镜像仓库登录信息:${NC}"
-    read -p "💡 阿里云镜像仓库地址 (默认: registry.cn-chengdu.aliyuncs.com): " registry_url
-    registry_url=${registry_url:-registry.cn-chengdu.aliyuncs.com}
-    read -p "💡 阿里云镜像仓库命名空间: " registry_namespace
-    read -p "💡 阿里云镜像仓库用户名: " registry_username
-    read -s -p "💡 阿里云镜像仓库密码: " registry_password
-    echo
-    
-    # 登录阿里云镜像仓库
-    if ! docker_registry_login_with_retry "$registry_url" "$registry_username" "$registry_password"; then
-        echo -e "${RED}❌ 无法登录阿里云镜像仓库，请检查凭据后重试${NC}"
-        continue
-    fi
-    
-    # 复制远程镜像配置文件
-    echo -e "${GREEN}📝 使用远程镜像配置...${NC}"
-    if ! cp "$CONFIG_DIR/docker-compose-remote.yml" "$PROJECT_DIR/docker-compose.yml"; then
-        echo -e "${RED}❌ 复制docker-compose配置文件失败${NC}"
-        continue
-    fi
-    
-    # 拉取镜像
-    echo -e "${GREEN}📥 从阿里云镜像仓库拉取镜像...${NC}"
-    cd $PROJECT_DIR
-    if ! docker_compose_pull_with_retry; then
-        echo -e "${RED}❌ 拉取镜像失败，请检查网络连接和镜像是否存在${NC}"
-        continue
-    fi
+# 获取阿里云镜像仓库信息
+echo -e "${GREEN}🔑 请输入阿里云镜像仓库登录信息:${NC}"
+read -p "💡 阿里云镜像仓库地址 (默认: registry.cn-chengdu.aliyuncs.com): " registry_url
+registry_url=${registry_url:-registry.cn-chengdu.aliyuncs.com}
+read -p "💡 阿里云镜像仓库命名空间: " registry_namespace
+read -p "💡 阿里云镜像仓库用户名: " registry_username
+read -s -p "💡 阿里云镜像仓库密码: " registry_password
+echo
 
-    # 使用拉取的后端镜像生成 SECRET_KEY
-    echo -e "${GREEN}🔑 生成Django SECRET_KEY...${NC}"
-    if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "$registry_url/$registry_namespace/msdps_backend:v1" "$PROJECT_DIR"; then
-        echo -e "${RED}❌ SECRET_KEY生成失败，部署终止${NC}"
-        exit 1
-    fi
-done
+# 登录阿里云镜像仓库
+if ! docker_registry_login_with_retry "$registry_url" "$registry_username" "$registry_password"; then
+    echo -e "${RED}❌ 无法登录阿里云镜像仓库，请检查凭据后重试${NC}"
+    exit 1
+fi
+
+# 复制远程镜像配置文件
+echo -e "${GREEN}📝 使用远程镜像配置...${NC}"
+if ! cp "$CONFIG_DIR/docker-compose-remote.yml" "$PROJECT_DIR/docker-compose.yml"; then
+    echo -e "${RED}❌ 复制docker-compose配置文件失败${NC}"
+    exit 1
+fi
+
+# 拉取镜像
+echo -e "${GREEN}📥 从阿里云镜像仓库拉取镜像...${NC}"
+cd $PROJECT_DIR
+if ! docker_compose_pull_with_retry; then
+    echo -e "${RED}❌ 拉取镜像失败，请检查网络连接和镜像是否存在${NC}"
+    exit 1
+fi
+
+# 使用拉取的后端镜像生成 SECRET_KEY
+echo -e "${GREEN}🔑 生成Django SECRET_KEY...${NC}"
+if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "$registry_url/$registry_namespace/msdps_backend:v1" "$PROJECT_DIR"; then
+    echo -e "${RED}❌ SECRET_KEY生成失败，部署终止${NC}"
+    exit 1
+fi
 
 # 启动所有容器
 echo -e "${GREEN}🚀 启动所有容器...${NC}"
