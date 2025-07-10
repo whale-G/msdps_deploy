@@ -59,11 +59,14 @@ PROJECT_DIR="$USER_HOME/msdps_web"
 
 # 项目配置
 CONFIG_DIR="../../configs"          # 定义配置文件路径
+# 项目GitHub仓库
+FRONTEND_REPO="https://github.com/whale-G/msdps_vue.git"
+BACKEND_REPO="https://github.com/whale-G/msdps.git"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 
 # 步骤1: 安装Docker和Docker Compose
-print_step 1 6 "配置Docker环境"
+print_step 1 7 "配置Docker环境"
 setup_docker_environment
 
 # 如果Docker环境配置失败，退出脚本
@@ -73,7 +76,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # 步骤2: 创建项目目录
-print_step 2 6 "创建项目目录"
+print_step 2 7 "创建项目目录"
 echo -e "${GREEN}📁 创建项目必要的目录...${NC}"
 if ! mkdir -p $PROJECT_DIR/{frontend,backend,mysql,redis,configs/env}; then
     echo -e "${RED}❌ 创建项目目录失败${NC}"
@@ -85,8 +88,31 @@ if ! chown -R $REAL_USER:$REAL_USER $PROJECT_DIR; then
 fi
 cd $PROJECT_DIR || exit 1
 
-# 步骤3: 配置docker容器端口映射
-print_step 3 6 "配置服务端口"
+# 步骤3: 克隆前端和后端代码
+print_step 3 7 "克隆代码仓库"
+
+# 克隆前端仓库
+echo -e "${GREEN}📥 克隆前端项目仓库...${NC}"
+clone_with_retry "$FRONTEND_REPO" "$FRONTEND_DIR"
+clone_frontend_status=$?
+
+# 如果用户选择不覆盖现有目录，继续使用现有代码
+if [ $clone_frontend_status -eq 2 ]; then
+    echo -e "${YELLOW}ℹ️ 使用现有前端代码继续部署${NC}"
+fi
+
+# 克隆后端仓库
+echo -e "${GREEN}📥 克隆后端项目仓库...${NC}"
+clone_with_retry "$BACKEND_REPO" "$BACKEND_DIR"
+clone_backend_status=$?
+
+# 如果用户选择不覆盖现有目录，继续使用现有代码
+if [ $clone_backend_status -eq 2 ]; then
+    echo -e "${YELLOW}ℹ️ 使用现有后端代码继续部署${NC}"
+fi
+
+# 步骤4: 配置docker容器端口映射
+print_step 4 7 "配置服务端口"
 
 # 配置后端端口
 echo -e "${GREEN}🔧 配置后端服务端口...${NC}"
@@ -149,8 +175,8 @@ echo -e "\n${CYAN}📋 端口配置信息：${NC}"
 echo -e "  ⚡ 后端服务端口: $BACKEND_PORT"
 echo -e "  ⚡ 前端服务端口: $FRONTEND_PORT"
 
-# 步骤4: 创建配置文件
-print_step 4 6 "创建配置文件"
+# 步骤5: 创建配置文件
+print_step 5 7 "创建配置文件"
 cd $SCRIPT_DIR || exit 1
 
 # 创建并设置MySQL数据目录权限
@@ -220,8 +246,8 @@ if ! cp "$CONFIG_DIR/env/.env" "$PROJECT_DIR/configs/env/.env"; then
     exit 1
 fi
 
-# 步骤5: 配置web项目环境变量
-print_step 5 6 "配置环境变量"
+# 步骤6: 配置web项目环境变量
+print_step 6 7 "配置环境变量"
 
 # 预设项目环境变量
 MYSQL_ROOT_PASSWORD=123Abc456
@@ -229,8 +255,8 @@ MYSQL_DATABASE=msdps_db
 MYSQL_USER=msdps_db_user
 MYSQL_PASSWORD=123Abc456
 REDIS_PASSWORD=123Abc456
-DJANGO_ADMIN_ACCOUNT=admin
-DJANGO_ADMIN_PASSWORD=123Abc456
+DJANGO_SUPERUSER_USERNAME=admin
+DJANGO_SUPERUSER_PASSWORD=123Abc456
 
 # 创建MySQL环境变量文件
 echo -e "${GREEN}📝 创建MySQL环境配置...${NC}"
@@ -285,12 +311,12 @@ REDIS_PASSWORD=$REDIS_PASSWORD
 REDIS_DB=0
 
 # Django管理员配置
-ADMIN_ACCOUNT=$DJANGO_ADMIN_ACCOUNT
-ADMIN_INITIAL_PASSWORD=$DJANGO_ADMIN_PASSWORD
+ADMIN_ACCOUNT=$DJANGO_SUPERUSER_USERNAME
+ADMIN_INITIAL_PASSWORD=$DJANGO_SUPERUSER_PASSWORD
 EOF
 
-# 步骤6: 构建镜像并启动容器
-print_step 6 6 "构建镜像并启动容器"
+# 步骤7: 构建镜像并启动容器
+print_step 7 7 "构建镜像并启动容器"
 
 # 复制远程镜像配置文件
 echo -e "${GREEN}📝 使用远程镜像配置...${NC}"
@@ -309,7 +335,7 @@ fi
 
 # 使用拉取的后端镜像生成 SECRET_KEY
 echo -e "${GREEN}🔑 生成Django SECRET_KEY...${NC}"
-if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "$registry_url/$registry_namespace/msdps_backend:v1" "$PROJECT_DIR"; then
+if ! generate_django_secret_key "$PROJECT_DIR/configs/env/.env.production" "registry.cn-chengdu.aliyuncs.com/allenbobo/msdps_backend:v1" "$PROJECT_DIR"; then
     echo -e "${RED}❌ SECRET_KEY生成失败，部署终止${NC}"
     exit 1
 fi
