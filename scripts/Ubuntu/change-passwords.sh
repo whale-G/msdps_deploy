@@ -65,11 +65,10 @@ fi
 
 print_separator
 echo -e "${YELLOW}即将执行以下操作：${NC}"
-echo "1. 修改 MySQL root 密码"
-echo "2. 修改 MySQL 用户密码"
-echo "3. 修改 Redis 密码"
-echo "4. 更新 Django 环境配置"
-echo "5. 重启相关服务"
+echo "1. 停止相关服务"
+echo "2. 更新环境变量配置"
+echo "3. 重启并初始化服务"
+echo "4. 验证服务状态"
 
 read -p "确认执行? (y/n): " -n 1 -r
 echo
@@ -82,22 +81,19 @@ fi
 echo -e "\n${YELLOW}正在停止相关服务...${NC}"
 docker compose -f $PROJECT_DIR/docker-compose.yml stop mysql redis backend scheduler celery_worker
 
-# 修改 MySQL 密码
-echo -e "\n${YELLOW}正在修改 MySQL 密码...${NC}"
-if ! docker compose -f $PROJECT_DIR/docker-compose.yml exec -T mysql mysql -u root -p"$MYSQL_ROOT_PASSWORD" << EOF
-ALTER USER 'root'@'%' IDENTIFIED BY '$mysql_root_password';
-ALTER USER '$MYSQL_USER'@'%' IDENTIFIED BY '$mysql_password';
-FLUSH PRIVILEGES;
-EOF
-then
-    handle_error "MySQL 密码修改失败"
+# 备份提示
+echo -e "\n${YELLOW}⚠️ 警告: 即将清除数据库数据，这将导致所有数据丢失。${NC}"
+read -p "是否继续? (y/n): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo -e "${RED}已取消操作${NC}"
+    exit 1
 fi
 
-# 修改 Redis 密码
-echo -e "\n${YELLOW}正在修改 Redis 密码...${NC}"
-if ! docker compose -f $PROJECT_DIR/docker-compose.yml exec -T redis redis-cli -a "$REDIS_PASSWORD" CONFIG SET requirepass "$redis_password"; then
-    handle_error "Redis 密码修改失败"
-fi
+# 清理MySQL和Redis数据
+echo -e "\n${YELLOW}正在清理数据...${NC}"
+rm -rf $PROJECT_DIR/mysql/data/*
+rm -rf $PROJECT_DIR/redis/data/*
 
 # 更新环境变量文件
 echo -e "\n${YELLOW}正在更新环境变量文件...${NC}"
@@ -106,8 +102,10 @@ echo -e "\n${YELLOW}正在更新环境变量文件...${NC}"
 sed -i "s/MYSQL_ROOT_PASSWORD=.*/MYSQL_ROOT_PASSWORD=$mysql_root_password/" $PROJECT_DIR/configs/env/mysql.env
 sed -i "s/MYSQL_PASSWORD=.*/MYSQL_PASSWORD=$mysql_password/" $PROJECT_DIR/configs/env/mysql.env
 
-# 更新 Redis 环境变量
+# 更新 Redis 环境变量和配置文件
 sed -i "s/REDIS_PASSWORD=.*/REDIS_PASSWORD=$redis_password/" $PROJECT_DIR/configs/env/redis.env
+# 直接替换Redis配置文件中的密码，而不是使用变量
+sed -i "s/^requirepass .*/requirepass $redis_password/" $PROJECT_DIR/redis/redis.conf
 
 # 更新 Django 环境变量
 sed -i "s/DB_PASSWORD=.*/DB_PASSWORD=$mysql_password/" $PROJECT_DIR/configs/env/.env.production
@@ -119,14 +117,43 @@ if ! docker compose -f $PROJECT_DIR/docker-compose.yml up -d --force-recreate my
     handle_error "服务重启失败"
 fi
 
+# 等待服务启动
+echo -e "\n${YELLOW}等待服务启动...${NC}"
+sleep 15  # 增加等待时间，确保服务完全启动
+
 # 验证服务状态
 echo -e "\n${YELLOW}正在验证服务状态...${NC}"
-sleep 10  # 等待服务启动
 
-# 检查服务状态
-if docker compose -f $PROJECT_DIR/docker-compose.yml ps | grep -q "Exit"; then
-    handle_error "部分服务启动失败，请检查日志"
-fi
+# docker-compose.yml所在目录
+cd $PROJECT_DIR
+
+# 验证 MySQL 容器
+echo -e "验证 MySQL 容器状态..."
+for i in {1..30}; do
+    if docker compose exec -T mysql bash -c "echo 'MySQL容器可访问'" > /dev/null 2>&1; then
+        echo -e "${GREEN}MySQL容器运行正常！${NC}"
+        break
+    fi
+    echo "等待 MySQL 容器就绪... ($i/30)"
+    sleep 2
+    if [ $i -eq 30 ]; then
+        handle_error "MySQL 容器无法访问"
+    fi
+done
+
+# 验证 Redis 容器
+echo -e "验证 Redis 容器状态..."
+for i in {1..30}; do
+    if docker compose exec -T redis bash -c "echo 'Redis容器可访问'" > /dev/null 2>&1; then
+        echo -e "${GREEN}Redis容器运行正常！${NC}"
+        break
+    fi
+    echo "等待 Redis 容器就绪... ($i/30)"
+    sleep 2
+    if [ $i -eq 30 ]; then
+        handle_error "Redis 容器无法访问"
+    fi
+done
 
 print_separator
 echo -e "${GREEN}✅ 密码修改成功！${NC}"
