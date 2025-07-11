@@ -116,6 +116,16 @@ chmod +x ./*.sh
 4. 执行修改敏感环境变量脚本：
 ```bash
 ./change-passwords.sh
+
+# 在脚本执行完毕后，进行测试验证修改
+# 测试 MySQL root 用户连接
+docker exec -it msdps_mysql mysql -u root -p
+
+# 测试 Redis 连接
+# 1. 进入redis-cli
+docker exec -it msdps_redis redis-cli
+# 2. 测试登录
+auth "your-password"
 ```
 
 建议您在部署完成后立即修改所有预设密码：
@@ -129,6 +139,7 @@ chmod +x ./*.sh
      2. 修改数据库和缓存密码
      3. 更新环境变量文件
      4. 重启并验证服务状态
+   - Django后端中管理员用户密码会在初次登录时强制修改
 
 <div STYLE="page-break-after: always;"></div>
 
